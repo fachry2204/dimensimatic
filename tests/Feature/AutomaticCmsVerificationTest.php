@@ -122,7 +122,12 @@ class AutomaticCmsVerificationTest extends TestCase
         }
         foreach (array_slice($jobs, 4) as $job) {
             $this->assertNull($job->fresh()->soundon_upc);
-            $this->assertNull($job->fresh()->soundfresh_verify_status);
+            if ($job->fresh()->soundon_release_status === 'not_approved') {
+                $this->assertSame('failed', $job->fresh()->soundfresh_verify_status);
+                $this->assertStringContainsString('Alasan penolakan SoundOn belum terbaca', $job->fresh()->soundfresh_verify_error);
+            } else {
+                $this->assertNull($job->fresh()->soundfresh_verify_status);
+            }
         }
         app()->call([$check, 'handle']);
         Queue::assertPushed(VerifySoundfreshReleaseIdentifiers::class, 4);

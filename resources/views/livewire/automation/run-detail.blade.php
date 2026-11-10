@@ -29,7 +29,7 @@
                         <div class="border-t border-slate-200 p-4">
                             <dl class="grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
                                 @foreach (['primary_artist' => 'Artis utama', 'release_type' => 'Tipe rilisan', 'version' => 'Versi', 'genre' => 'Genre', 'subgenre' => 'Subgenre', 'title_language' => 'Bahasa judul', 'release_date' => 'Tanggal rilis', 'upc' => 'UPC', 'record_label' => 'Label'] as $field => $label)
-                                    <div><dt class="text-slate-400">{{ $label }}</dt><dd class="mt-1 font-semibold text-slate-700">{{ filled($metadata[$field] ?? null) ? $metadata[$field] : '—' }}</dd></div>
+                                    <div><dt class="text-slate-400">{{ $label }}</dt><dd class="mt-1 font-semibold text-slate-700">{{ filled($metadata[$field] ?? null) ? $metadata[$field] : '—' }}</dd>@if($field === 'record_label')<dd class="mt-1 text-xs text-slate-500">Whitelabel {{ !empty($metadata['whitelabel_active']) ? 'Aktif' : 'Tidak Aktif' }}</dd>@endif</div>
                                 @endforeach
                             </dl>
                             <div class="mt-5 space-y-3">

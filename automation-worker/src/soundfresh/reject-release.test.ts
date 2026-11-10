@@ -1,42 +1,69 @@
-import { describe, expect, it, vi } from "vitest";
-import { rejectSoundfreshRelease } from "./reject-release.js";
+import { afterAll, beforeAll, expect, test } from 'vitest';
+import { chromium, type Browser, type Page } from 'playwright';
+import { rejectSoundfreshRelease } from './reject-release.js';
 
-describe("rejectSoundfreshRelease", () => {
-    it("copies the rejection reason and submits Reject Release", async () => {
-        let dropdownOpened = false;
-        const open = { count: vi.fn(async () => dropdownOpened ? 1 : 0), click: vi.fn(async () => undefined) };
-        const dropdown = {
-            count: vi.fn(async () => 1),
-            click: vi.fn(async () => { dropdownOpened = true; }),
-        };
-        const submit = { count: vi.fn(async () => 1), click: vi.fn(async () => undefined) };
-        const textbox = { count: vi.fn(async () => 1), fill: vi.fn(async () => undefined) };
-        const modal = {
-            count: vi.fn(async () => 1), waitFor: vi.fn(async () => undefined), isVisible: vi.fn(async () => false),
-            getByRole: vi.fn((role: string) => role === "textbox"
-                ? { filter: vi.fn(() => ({ first: vi.fn(() => textbox) })) }
-                : { filter: vi.fn(() => ({ last: vi.fn(() => submit) })) }),
-            locator: vi.fn(),
-        };
-        const page = {
-            url: vi.fn(() => "https://cms.soundfresh.id/admin/releases/123"),
-            getByRole: vi.fn((role: string, options?: { name?: RegExp }) => role === "dialog"
-                ? { filter: vi.fn(() => ({ first: vi.fn(() => modal) })) }
-                : role === "button" && options?.name?.test("Reject Release")
-                    ? { filter: vi.fn(() => ({ first: vi.fn(() => ({ count: vi.fn(async () => 0) })) })) }
-                : { filter: vi.fn(() => ({ first: vi.fn(() => dropdown) })), allInnerTexts: vi.fn(async () => []) }),
-            getByText: vi.fn(() => ({ filter: vi.fn(() => ({ first: vi.fn(() => open) })) })),
-            locator: vi.fn(() => ({
-                filter: vi.fn(() => ({ filter: vi.fn(() => ({ first: vi.fn(() => dropdown) })) })),
-            })),
-            waitForTimeout: vi.fn(async () => undefined),
-        } as any;
+let browser: Browser;
+beforeAll(async () => { browser = await chromium.launch({ headless: true }); });
+afterAll(async () => { await browser?.close(); });
 
-        await rejectSoundfreshRelease(page, "Artwork tidak sesuai ketentuan");
-
-        expect(textbox.fill).toHaveBeenCalledWith("Artwork tidak sesuai ketentuan");
-        expect(dropdown.click).toHaveBeenCalledOnce();
-        expect(open.click).toHaveBeenCalledOnce();
-        expect(submit.click).toHaveBeenCalledOnce();
+async function fixture(page: Page, options: { legacy?: boolean; fail?: boolean; rollback?: boolean; already?: boolean } = {}) {
+    let rejected = options.already ?? false;
+    const reasons: string[] = [];
+    await page.route('https://cms-reject.test/**', async route => {
+        if (route.request().method() === 'POST') {
+            reasons.push(new URLSearchParams(route.request().postData() ?? '').get('reason') ?? '');
+            rejected = !options.fail && !options.rollback;
+            await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ rejected: !options.fail }) });
+            return;
+        }
+        await route.fulfill({ contentType: 'text/html', body: `
+            <nav><a>Rejected</a></nav><h1>Love Grows Like Ivy</h1>
+            <span id="status">${rejected ? 'Rejected' : 'Upload DSP'}</span>
+            ${options.legacy ? '<button aria-label="Toggle Dropdown" onclick="document.querySelector(\'#reject-action\').hidden=false">Verify Release</button>' : ''}
+            <button id="verify-action" onclick="window.verifyClicked=true">Verify Release</button>
+            <button id="reject-action" ${options.legacy ? 'hidden' : ''} onclick="document.querySelector('#reject-modal').style.display='block'">Reject Release</button>
+            <div id="reject-modal" role="dialog" style="display:none">
+                <h2>Reject Release</h2><form id="rejection">
+                <label>Reason<textarea name="reason"></textarea></label><button>Reject Release</button></form>
+            </div>
+            <script>document.querySelector('#rejection').onsubmit=async event=>{
+                event.preventDefault();
+                const result=await fetch('/reject',{method:'POST',body:new URLSearchParams(new FormData(event.target))}).then(r=>r.json());
+                document.querySelector('#reject-modal').style.display='none';
+                if(result.rejected) document.querySelector('#status').textContent='Rejected';
+            };</script>` });
     });
+    await page.goto('https://cms-reject.test/admin/releases/123');
+    return reasons;
+}
+
+for (const legacy of [false, true]) test(`submits the exact SoundOn reason and verifies persistence (${legacy ? 'dropdown' : 'direct button'})`, async () => {
+    const page = await browser.newPage();
+    try {
+        const reasons = await fixture(page, { legacy });
+        const reason = 'Artwork: text is unreadable\nAudio: instrumental classification is incorrect';
+        await rejectSoundfreshRelease(page, reason, 1500);
+        expect(reasons).toEqual([reason]);
+        expect(await page.locator('#status').innerText()).toBe('Rejected');
+        expect(await page.evaluate(() => (window as any).verifyClicked)).toBeUndefined();
+        await rejectSoundfreshRelease(page, reason, 1500);
+        expect(reasons).toHaveLength(1);
+    } finally { await page.close(); }
+});
+
+for (const rollback of [false, true]) test(`does not report success when CMS ${rollback ? 'rolls back after reload' : 'closes the dialog without saving'}`, async () => {
+    const page = await browser.newPage();
+    try {
+        await fixture(page, rollback ? { rollback: true } : { fail: true });
+        await expect(rejectSoundfreshRelease(page, 'Real SoundOn reason', 600)).rejects.toThrow('SOUNDFRESH_REJECT_NOT_CONFIRMED');
+    } finally { await page.close(); }
+});
+
+test('does not submit an empty rejection reason', async () => {
+    const page = await browser.newPage();
+    try {
+        const reasons = await fixture(page);
+        await expect(rejectSoundfreshRelease(page, '   ')).rejects.toThrow('REJECTION_REASON_REQUIRED');
+        expect(reasons).toEqual([]);
+    } finally { await page.close(); }
 });

@@ -77,6 +77,8 @@ export async function createDraft(
     action: unknown,
 ): Promise<{ draft_id: string; draft_url: string; warnings?: string[] }> {
     assertDraftOnly(action);
+    const label = resolveLabelName(metadata);
+    metadata = { ...metadata, record_label: label, p_line: label, c_line: label };
 
     let draft: { draft_id: string; draft_url: string };
     if (registry.soundon.configured) {
@@ -256,12 +258,7 @@ async function createKnownSoundOnDraft(
         );
     }
     await closeResidualEntityDialogs(page);
-    await setTextField(
-        page,
-        "Record label",
-        "Dimensi Suara",
-        false,
-    );
+    await setLabelRightsFields(page, metadata, false);
     await setRadioIfPresent(
         page,
         ["This track contains licensed content"],
@@ -494,7 +491,7 @@ async function createKnownSoundOnAlbumDraft(
     // page depending on the EP/Album form revision. Fill it here when present,
     // then enforce the same default on the publishing-rights page below.
     await setPublisherField(page, "Dimensi Suara", true);
-    await setTextField(page, "Record label", "Dimensi Suara", true);
+    await setLabelRightsFields(page, metadata, true);
     await setSectionFile(page, "#form-section-cover-art", String(metadata.cover?.local_path ?? ""), "cover");
     const hasUpc = Boolean(String(metadata.upc ?? "").trim());
     await setScopedRadio(page, "Previously released?", hasUpc || metadata.previously_released
@@ -610,7 +607,7 @@ async function createKnownSoundOnAlbumDraft(
         for (const contributor of contributorEntries(track.production_contributors || track.primary_artist, "Producer"))
             await setContributorWithFallback(page, "Production and additional contributors", contributor.name, contributor.role, String(track.primary_artist ?? metadata.primary_artist ?? ""), "Producer");
         await closeResidualEntityDialogs(page);
-        await setTextField(page, "Record label", "Dimensi Suara", true);
+        await setLabelRightsFields(page, metadata, true);
         await setRadioIfPresent(page, ["Previously released?", "Previously released"], (track.previously_released ?? metadata.previously_released) || hasUpc
             ? "Yes, I want to move my music from another distributor to SoundOn"
             : "No, I want to distribute a new release");
@@ -1123,6 +1120,21 @@ async function dismissVisibleEntityDialogs(page: Page): Promise<void> {
             await page.waitForTimeout(500);
         }
     }
+}
+
+export function resolveLabelName(metadata: Record<string, any>): string {
+    const active = ['1', 'true', 'yes', 'active', 'aktif'].includes(String(metadata.whitelabel_active ?? '').trim().toLowerCase());
+    if (!active) return 'Dimensi Suara';
+    const label = String(metadata.label_name ?? metadata.record_label ?? '').trim();
+    if (!label) throw new Error('METADATA_MISSING:Nama Label wajib diisi untuk akun Whitelabel aktif');
+    return label;
+}
+
+export async function setLabelRightsFields(page: Page, metadata: Record<string, any>, recordOptional = false): Promise<void> {
+    const label = resolveLabelName(metadata);
+    await setTextField(page, 'Record label', label, recordOptional);
+    await setTextField(page, 'P-line', label, true);
+    await setTextField(page, 'C-line', label, true);
 }
 
 export function matchesFieldLabel(candidate: string | null | undefined, label: string): boolean {

@@ -50,7 +50,7 @@ internal static class Program
 
         public MainWindow(string root)
         {
-            this.root = root; Text = "Dimensimatic v1.1.104"; Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); Width = 1440; Height = 900; MinimumSize = new Size(1000, 680); StartPosition = FormStartPosition.CenterScreen;
+            this.root = root; Text = "Dimensimatic v1.1.106"; Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); Width = 1440; Height = 900; MinimumSize = new Size(1000, 680); StartPosition = FormStartPosition.CenterScreen;
             defaultWindowIcon = Icon is null ? null : (Icon)Icon.Clone();
             Controls.Add(view); Controls.Add(status); Shown += async (_, _) => await StartAsync();
             serviceMonitor.Tick += async (_, _) => await RecoverServicesAsync();
@@ -139,7 +139,7 @@ internal static class Program
                 if (!string.IsNullOrEmpty(name) && name.Length <= 80)
                 {
                     systemName = name;
-                    Text = systemName + " v1.1.104";
+                    Text = systemName + " v1.1.106";
                 }
             }
             if (!branding.TryGetProperty("favicon", out var faviconValue)) return;
@@ -496,10 +496,10 @@ internal static class Program
             request.Headers.Add("X-Automation-Nonce", nonce);
             request.Headers.Add("X-Automation-Signature", signature);
             using var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode) throw new InvalidOperationException("Worker tidak sesuai atau belum diperbarui. Pasang ulang Dimensimatic v1.1.104 lalu buka kembali.");
+            if (!response.IsSuccessStatusCode) throw new InvalidOperationException("Worker tidak sesuai atau belum diperbarui. Pasang ulang Dimensimatic v1.1.106 lalu buka kembali.");
             using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            if (document.RootElement.GetProperty("data").GetProperty("version").GetString() != "1.1.104")
-                throw new InvalidOperationException("Versi worker berbeda dari aplikasi v1.1.104. Tutup aplikasi dan pasang ulang pembaruan.");
+            if (document.RootElement.GetProperty("data").GetProperty("version").GetString() != "1.1.106")
+                throw new InvalidOperationException("Versi worker berbeda dari aplikasi v1.1.106. Tutup aplikasi dan pasang ulang pembaruan.");
         }
 
         private static async Task WaitPort(int port) { for (var i = 0; i < 90; i++) { if (PortOpen(port)) return; await Task.Delay(500); } throw new InvalidOperationException($"Service port {port} tidak aktif."); }

@@ -91,7 +91,7 @@ final class CheckSoundOnReleaseStatus implements ShouldQueue
                     'underreview', 'in_review', 'reviewing' => 'under_review',
                     'delivered' => 'delivery',
                     'aproved' => 'approved',
-                    'notapproved', 'rejected', 'declined' => 'not_approved',
+                    'notapproved', 'reject', 'rejected', 'declined', 'ditolak' => 'not_approved',
                     default => $status,
                 };
                 if (! in_array($status, ['under_review', 'delivery', 'approved', 'not_approved', 'live'], true)) {
@@ -133,6 +133,7 @@ final class CheckSoundOnReleaseStatus implements ShouldQueue
                     'soundon_check_progress' => 100, 'soundon_check_finished_at' => now(),
                 ]);
                 app(\App\Services\Automation\QueueCmsVerification::class)->dispatch($job, true);
+                app(\App\Services\Automation\QueueCmsRejection::class)->dispatch($job, true);
             }
         } catch (Throwable $exception) {
             ReleaseJob::query()->whereIn('id', $jobs->pluck('id'))->update([

@@ -243,3 +243,20 @@ it('does not report not-found when the page counter proves more rows remain',asy
         await expect(findReleaseStatuses(page,[{key:'rose',title:'The Forever Blooming Rose',artist:'Noah Benjamin Hayes'}])).rejects.toThrow('SOUNDON_STATUS_LIST_INCOMPLETE');
     }finally{await browser.close();}
 });
+
+it('reads rejection details even when the library row already contains UPC and ISRC', async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+        const context = await browser.newContext();
+        const page = await context.newPage();
+        await context.route('http://soundon-reject.test/**', route => route.fulfill({ contentType: 'text/html; charset=utf-8', body:
+            route.request().url().includes('/detail/')
+                ? '<div role="alert">The track Love Grows Like Ivy was not approved due to the following reason(s):<p>· Artwork: unreadable text</p><p>· Audio: incorrect instrumental flag</p></div>'
+                : '<table><tbody><tr><td><a href="/detail/123">Love Grows Like Ivy</a></td><td>Ryan Christopher Morgan</td><td>Not Approved</td><td>UPC: 1234567890123 ISRC: IDABC2612345</td></tr></tbody></table>'
+        }));
+        await page.goto('http://soundon-reject.test/');
+        const matches = await findReleaseStatuses(page, [{ key: 'ivy', title: 'Love Grows Like Ivy', artist: 'Ryan Christopher Morgan' }]);
+        expect(matches.ivy?.status).toBe('not_approved');
+        expect(matches.ivy?.reason).toBe('Artwork: unreadable text\nAudio: incorrect instrumental flag');
+    } finally { await browser.close(); }
+}, 15000);

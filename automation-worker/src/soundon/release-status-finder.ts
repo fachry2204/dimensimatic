@@ -16,7 +16,7 @@ export type ReleaseStatusMatch = {
 const statuses: Array<{ value: SoundOnReleaseStatus; label: RegExp }> = [
     // Check the negative form before Approved so "Not Approved" is never
     // misclassified by the shorter positive expression.
-    { value: "not_approved", label: /not\s*approved|rejected/i },
+    { value: "not_approved", label: /not\s*approved|\breject(?:ed)?\b|\bdeclined\b|\bditolak\b/i },
     { value: "under_review", label: /(?:under|in)\s*review|reviewing/i },
     { value: "delivery", label: /delivery|delivered/i },
     // Accept the misspelling defensively; the value stored by this app is canonical.
@@ -112,7 +112,7 @@ async function inspectDetails(page: Page, candidate: Locator, url: string, rejec
         };
     };
     const rowValues = await valuesFrom(candidate);
-    if (rowValues.upc && rowValues.isrcs.length) return rowValues;
+    if (!rejected && rowValues.upc && rowValues.isrcs.length) return rowValues;
     if (url === page.url()) return rowValues;
 
     const detail = await page.context().newPage();

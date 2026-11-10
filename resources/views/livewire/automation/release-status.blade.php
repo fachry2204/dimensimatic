@@ -176,6 +176,10 @@
                                     <p class="mt-2 text-xs text-emerald-700">CMS: Verify Release berhasil</p>
                                 @elseif($verifyStatus === 'sending')
                                     <p class="mt-2 text-xs text-indigo-600">CMS: antrean pengiriman / Verify Release berjalan</p>
+                                @elseif($verifyStatus === 'rejecting')
+                                    <p class="mt-2 text-xs text-indigo-600">CMS: Reject Release otomatis sedang dikirim</p>
+                                @elseif($verifyStatus === 'rejected')
+                                    <p class="mt-2 text-xs text-red-600">CMS: Reject Release berhasil</p>
                                 @elseif($verifyStatus === 'failed')
                                     <p class="mt-2 text-xs text-red-600">CMS: pengiriman gagal</p>
                                     <p class="mt-1 max-w-64 whitespace-normal break-words text-xs text-red-600">{{ \App\Support\SystemBranding::text($job->soundfresh_verify_error) }}</p>
@@ -240,7 +244,7 @@
             <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="reject-title">
                 <div class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl">
                     <h2 id="reject-title" class="text-lg font-bold text-slate-900">Pesan penolakan untuk {{ $cmsName }}</h2>
-                    <p class="mt-2 text-sm text-slate-600">Pesan ini akan diisi pada dialog Reject Release setelah sistem membuka panah di samping tombol Verify Release di {{ $cmsName }}.</p>
+                    <p class="mt-2 text-sm text-slate-600">Pesan ini akan diisi pada formulir setelah sistem menekan tombol Reject Release di {{ $cmsName }}.</p>
                     <label class="mt-4 block text-sm font-semibold text-slate-700" for="reject-reason">Alasan penolakan</label>
                     <textarea id="reject-reason" wire:model="rejectReason" rows="6" class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" placeholder="Tulis alasan penolakan untuk dikirim ke {{ $cmsName }}"></textarea>
                     @error('rejectReason') <p class="mt-1 text-xs text-red-600">{{ \App\Support\SystemBranding::text($message) }}</p> @enderror

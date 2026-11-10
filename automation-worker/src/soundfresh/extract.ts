@@ -36,6 +36,13 @@ export function preReleaseValue(fields: FieldMap): string | null {
     return entry?.[1]?.trim() || null;
 }
 
+export function labelIdentity(fields: FieldMap): { whitelabel_active: boolean; label_name: string | null } {
+    const entries = Object.entries(fields).map(([key, value]) => [key.toLowerCase().replace(/[^a-z0-9]+/g, ''), value] as const);
+    const flag = entries.find(([key]) => ['whitelabel', 'whitelabelstatus', 'statuswhitelabel', 'whitelabelactive'].includes(key))?.[1] ?? '';
+    const label = entries.find(([key]) => ['namalabel', 'labelname', 'recordlabel'].includes(key))?.[1]?.trim() || null;
+    return { whitelabel_active: /^(?:1|true|yes|active|aktif)$/i.test(flag.trim()), label_name: label };
+}
+
 const parseBoolean = (value: string | undefined): boolean =>
     /^(?:yes|explicit)$/i.test(String(value ?? "").trim());
 
@@ -338,6 +345,7 @@ async function extractSoundfreshDetail(
             raw.release["Original Release Date"] ||
             null,
         record_label: raw.release["Record Label"] || null,
+        ...labelIdentity(raw.release),
         cover: raw.cover,
         tracks,
     };

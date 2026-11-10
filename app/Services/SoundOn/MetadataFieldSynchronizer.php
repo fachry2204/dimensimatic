@@ -17,9 +17,16 @@ final class MetadataFieldSynchronizer
             }
         }
 
-        // All SoundOn drafts are owned by the same label, regardless of any
-        // optional label text supplied by Dimensi Suara.
-        $target['record_label'] = 'Dimensi Suara';
+        $active = in_array(strtolower(trim((string) ($source['whitelabel_active'] ?? ''))), ['1', 'true', 'yes', 'active', 'aktif'], true);
+        $label = $active ? trim((string) ($source['label_name'] ?? $source['record_label'] ?? '')) : 'Dimensi Suara';
+        if ($label === '') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['record_label' => 'Nama Label wajib diisi untuk akun Whitelabel aktif.']);
+        }
+        $target['whitelabel_active'] = $active;
+        $target['label_name'] = $label;
+        $target['record_label'] = $label;
+        $target['p_line'] = $label;
+        $target['c_line'] = $label;
 
         $trackSyncs = MetadataFieldSync::where('scope', 'track')->where('is_active', true)->orderBy('sort_order')->get();
         foreach (array_values($source['tracks'] ?? []) as $index => $sourceTrack) {

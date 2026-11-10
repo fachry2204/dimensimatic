@@ -103,8 +103,8 @@ final class ApplicationUpdateTest extends TestCase
         config(['automation.app_version' => '1.1.57']);
 
         Livewire::test(ApplicationUpdate::class)
-            ->assertSet('currentVersion', '1.1.104')
-            ->assertSee('v1.1.104');
+            ->assertSet('currentVersion', '1.1.106')
+            ->assertSee('v1.1.106');
     }
 
     public function test_installer_updates_version_without_rotating_existing_credentials(): void

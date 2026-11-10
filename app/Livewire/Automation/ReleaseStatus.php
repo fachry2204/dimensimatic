@@ -214,6 +214,7 @@ final class ReleaseStatus extends Component
     public function pollStatusUpdates(): void
     {
         app(\App\Services\Automation\QueueCmsVerification::class)->dispatchDetected();
+        app(\App\Services\Automation\QueueCmsRejection::class)->dispatchDetected();
         $recoveredStatusRuns = $this->recoverAbandonedStatusRuns();
         $queueActive = DB::table('jobs')->where('queue', 'status-checks')->exists();
         $releaseActive = ReleaseJob::query()->whereIn('soundon_check_status', ['queued', 'checking'])->exists();
@@ -446,6 +447,11 @@ final class ReleaseStatus extends Component
         }
         if ($job->soundfresh_workflow_status !== 'uploading') {
             $this->syncMessage = \App\Support\SystemBranding::text('Rilisan harus berada di tab Uploading Dimensi Suara sebelum ditolak.');
+            return;
+        }
+        if (in_array($job->soundfresh_verify_status, ['sending', 'rejecting', 'success', 'rejected'], true)) {
+            $this->syncMessage = 'Pengiriman CMS untuk '.$job->release_title.' sudah berjalan atau selesai.';
+            $this->cancelRejectInSoundfresh();
             return;
         }
         $job->update(['soundfresh_verify_status' => 'rejecting', 'soundfresh_verify_error' => null]);

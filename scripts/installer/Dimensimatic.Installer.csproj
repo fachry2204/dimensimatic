@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-    <AssemblyName>Dimensimatic-Setup</AssemblyName><Version>1.1.104</Version>
+    <AssemblyName>Dimensimatic-Setup</AssemblyName><Version>1.1.106</Version>
     <ApplicationIcon>..\assets\dimensimatic-icon.ico</ApplicationIcon><Product>Dimensimatic Setup</Product><Title>Dimensimatic Setup</Title><Company>Dimensi Suara</Company>
   </PropertyGroup>
   <ItemGroup>

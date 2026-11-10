@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 return [
-    'app_version' => env('DIMENSIMATIC_APP_VERSION', '1.1.104'),
+    'app_version' => env('DIMENSIMATIC_APP_VERSION', '1.1.106'),
     // Build metadata must not be overridden by a stale .env retained during upgrades.
-    'bundled_app_version' => '1.1.104',
+    'bundled_app_version' => '1.1.106',
     'update_repository' => env('DIMENSIMATIC_UPDATE_REPOSITORY') ?: 'fachry2204/dimensimatic',
     'worker_url' => env('PLAYWRIGHT_SERVICE_URL', 'http://127.0.0.1:3112'),
     'local_server_url' => env('APP_URL', 'http://127.0.0.1:8012'),

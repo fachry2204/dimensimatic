@@ -178,6 +178,7 @@ final class ReleaseStatusTest extends TestCase
 
     public function test_not_approved_status_is_stored_and_filterable(): void
     {
+        Queue::fake();
         $this->seed(AccessControlSeeder::class);
         $viewer = User::factory()->create();
         $viewer->assignRole('Viewer');
@@ -207,7 +208,7 @@ final class ReleaseStatusTest extends TestCase
             ->assertSee('Rilisan Ditolak')
             ->assertSee('Not Approved')
             ->assertSee('Alasan: Artwork buram')
-            ->assertSee('Reject di Dimensi Suara');
+            ->assertSee('Mengirim Reject...');
     }
 
     public function test_not_approved_release_can_be_rejected_in_soundfresh_with_the_same_reason(): void

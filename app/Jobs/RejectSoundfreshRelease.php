@@ -21,18 +21,20 @@ final class RejectSoundfreshRelease implements ShouldQueue
 
     public function __construct(public readonly string $releaseJobId, public readonly string $reason)
     {
-        $this->onQueue('status-checks');
+        $this->onQueue('cms-verification');
     }
 
     public function handle(PlaywrightClient $worker, SessionManager $sessions): void
     {
-        $job = ReleaseJob::query()->findOrFail($this->releaseJobId);
+        $job = ReleaseJob::query()->find($this->releaseJobId);
+        if (! $job || $job->soundfresh_verify_status !== 'rejecting') return;
         if ($job->soundon_release_status !== 'not_approved' || $job->soundfresh_workflow_status !== 'uploading') {
             $job->update(['soundfresh_verify_status' => 'failed', 'soundfresh_verify_error' => 'Reject hanya tersedia untuk rilisan Uploading berstatus Not Approved.']);
             return;
         }
 
         try {
+            if (trim($this->reason) === '') throw new RuntimeException('Alasan penolakan SoundOn wajib diisi.');
             $soundfresh = $sessions->ensure(Platform::Soundfresh);
             if ($soundfresh->status === 'manual_auth_required') {
                 throw new RuntimeException(\App\Support\SystemBranding::text('Sesi Dimensi Suara perlu login ulang dari Pengaturan Platform.'));
@@ -59,5 +61,14 @@ final class RejectSoundfreshRelease implements ShouldQueue
             }
             $job->update(['soundfresh_verify_status' => 'failed', 'soundfresh_verify_error' => $exception->getMessage()]);
         }
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        ReleaseJob::query()->whereKey($this->releaseJobId)
+            ->where('soundfresh_verify_status', 'rejecting')->update([
+                'soundfresh_verify_status' => 'failed',
+                'soundfresh_verify_error' => 'Reject CMS terputus: '.($exception?->getMessage() ?? 'Worker berhenti sebelum selesai.'),
+            ]);
     }
 }

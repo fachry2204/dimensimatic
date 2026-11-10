@@ -26,7 +26,7 @@ Buka **Pengaturan Platform → Link Login CMS** untuk mengubah alamat login CMS.
 
 ### Instalasi Dimensimatic terpisah
 
-Installer `Dimensimatic-Setup-v1.1.104.exe` memasang aplikasi di `%LOCALAPPDATA%\Programs\Dimensimatic`. EXE, shortcut, database, profil browser, cookie sesi, mutex aplikasi, dan log berada pada identitas Dimensimatic. Service lokal menggunakan port 8012 (aplikasi) dan 3112 (worker). Installer tidak memperbarui atau mengambil data dari instalasi SoundMatic.
+Installer `Dimensimatic-Setup-v1.1.106.exe` memasang aplikasi di `%LOCALAPPDATA%\Programs\Dimensimatic`. EXE, shortcut, database, profil browser, cookie sesi, mutex aplikasi, dan log berada pada identitas Dimensimatic. Service lokal menggunakan port 8012 (aplikasi) dan 3112 (worker). Installer tidak memperbarui atau mengambil data dari instalasi SoundMatic.
 
 Updater hanya menerima paket `Dimensimatic-Setup-vX.Y.Z.exe`. Repository update bawaan adalah `fachry2204/dimensimatic`.
 
@@ -87,3 +87,11 @@ Pemeriksaan browser langsung pada 10 November 2026 menemukan The Forever Bloomin
 Saat cek penuh dimulai, filter pencarian/status/tanggal direset dan tabel serta kartu ringkasan hanya mengambil snapshot pemeriksaan yang dipilih. Tampilan lama disembunyikan selama permintaan mulai berjalan. ID snapshot disimpan per pengguna agar pembaruan halaman tetap menampilkan pemeriksaan yang sama. Tombol dan indikator menampilkan tahap menunggu antrean, mengambil daftar Uploading, dan memeriksa X/Y rilisan; tombol kembali aktif pada hasil selesai, gagal, atau login manual. Status lama yang masih menunggu pemeriksaan ulang tidak ditampilkan sebagai hasil baru.
 
 Dispatcher mencatat tahap dan identitas pesan antreannya, serta memiliki failed callback untuk menghentikan status berjalan saat worker gagal. Polling memulihkan run yang tidak lagi mempunyai pesan antrean sendiri setelah jeda 15 detik; pesan reserved tetap dianggap aktif. Pekerjaan milik run lain tidak menahan tombol pemeriksaan yang sudah selesai. Pesan antrean lama tidak dapat menghidupkan ulang snapshot yang sudah dihapus. Riwayat pipeline di luar snapshot tidak dihapus untuk mengosongkan tampilan.
+
+### Penolakan otomatis dari SoundOn
+
+Saat Cek Status Rilis menemukan Not Approved / Rejected, aplikasi mengantrekan Reject Release di Dimensi Suara dan mengisi alasan penolakan asli SoundOn, termasuk beberapa baris alasan. Pengiriman CMS memakai antrean tersendiri sehingga pemeriksaan SoundOn tetap berjalan. Status lokal berubah menjadi Rejected setelah browser memastikan status CMS tersimpan setelah reload. Jika alasan tidak terbaca atau pengiriman gagal, kesalahan tampil pada tabel; operator dapat memeriksa ulang atau mengisi alasan melalui tombol Reject. Antrean berulang dan pekerjaan yang telah dihentikan tidak dikirim ulang otomatis oleh polling.
+
+### Identitas label dan Whitelabel
+
+Metadata rilisan mencatat `whitelabel_active` dan `label_name`. Jika status aktif, Record label, P-line, dan C-line SoundOn diisi dengan Nama Label yang sama; nama label kosong harus diperbaiki sebelum membuat draft. Jika tidak aktif, seluruhnya memakai Dimensi Suara. Tahun P-line/C-line mengikuti SoundOn. Pembacaan detail CMS mendukung baris Nama Label / Record Label dan Status Whitelabel / Whitelabel dengan nilai Aktif atau Tidak Aktif. Tanpa penanda aktivasi, nama label saja tidak mengaktifkan Whitelabel. Status ditampilkan di bawah Label pada metadata detail run.

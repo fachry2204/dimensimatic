@@ -10,6 +10,34 @@ class MetadataFieldSynchronizerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_whitelabel_identity_is_applied_to_all_three_rights_fields(): void
+    {
+        foreach ([true, 'aktif', 'true', 1] as $active) {
+            $result = app(MetadataFieldSynchronizer::class)->synchronize([
+                'whitelabel_active' => $active, 'label_name' => '  PT RUANG DIMENSI RECORDS  ',
+            ]);
+            foreach (['record_label', 'p_line', 'c_line'] as $field) {
+                $this->assertSame('PT RUANG DIMENSI RECORDS', $result[$field]);
+            }
+            $this->assertTrue($result['whitelabel_active']);
+        }
+        foreach ([false, 'false', 'tidak aktif', 0, null] as $active) {
+            $result = app(MetadataFieldSynchronizer::class)->synchronize([
+                'whitelabel_active' => $active, 'record_label' => 'Other Label',
+            ]);
+            foreach (['record_label', 'p_line', 'c_line'] as $field) {
+                $this->assertSame('Dimensi Suara', $result[$field]);
+            }
+            $this->assertFalse($result['whitelabel_active']);
+        }
+    }
+
+    public function test_active_whitelabel_without_a_name_requires_metadata_correction(): void
+    {
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(MetadataFieldSynchronizer::class)->synchronize(['whitelabel_active' => true, 'label_name' => '']);
+    }
+
     public function test_release_track_and_trimmed_audio_fields_are_synchronized(): void
     {
         $source = [

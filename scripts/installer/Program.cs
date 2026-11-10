@@ -34,7 +34,7 @@ internal static class Program
 
     private sealed class InstallerWindow : Form
     {
-        private readonly Label status = new() { Dock = DockStyle.Top, Height = 70, TextAlign = ContentAlignment.MiddleCenter, Text = "Dimensimatic Setup v1.1.104", Font = new Font("Segoe UI", 14, FontStyle.Bold) };
+        private readonly Label status = new() { Dock = DockStyle.Top, Height = 70, TextAlign = ContentAlignment.MiddleCenter, Text = "Dimensimatic Setup v1.1.106", Font = new Font("Segoe UI", 14, FontStyle.Bold) };
         private readonly ProgressBar progress = new() { Dock = DockStyle.Top, Height = 24, Style = ProgressBarStyle.Marquee };
         private readonly Button install = new() { Dock = DockStyle.Top, Height = 46, Text = "Install Dimensimatic" };
         private readonly Label note = new() { Dock = DockStyle.Fill, Padding = new Padding(18), TextAlign = ContentAlignment.TopLeft, Text = "Aplikasi akan dipasang untuk pengguna Windows saat ini.\n\nLokasi: %LOCALAPPDATA%\\Programs\\Dimensimatic\n\nSetelah instalasi, login awal: admin / admin. Segera ganti password setelah masuk." };

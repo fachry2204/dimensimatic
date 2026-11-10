@@ -1,6 +1,30 @@
 import type { Locator, Page } from "playwright";
 
-export async function rejectSoundfreshRelease(page: Page, reason: string): Promise<void> {
+async function isRejected(page: Page): Promise<boolean> {
+    return page.getByText(/^(?:Rejected|Release rejected|Ditolak|Rilisan ditolak)$/i).evaluateAll(elements =>
+        elements.some(element => !element.closest('nav, aside, a, [role="dialog"], .modal')
+            && (element as HTMLElement).getClientRects().length > 0),
+    );
+}
+
+async function waitForRejection(page: Page, timeout: number): Promise<boolean> {
+    const deadline = Date.now() + timeout;
+    do {
+        if (await isRejected(page)) return true;
+        await page.waitForTimeout(150);
+    } while (Date.now() < deadline);
+    return false;
+}
+
+export async function rejectSoundfreshRelease(page: Page, reason: string, timeout = 20_000): Promise<void> {
+    reason = reason.trim();
+    if (!reason) throw new Error('REJECTION_REASON_REQUIRED');
+    // A previous request may have succeeded before its response was lost.
+    if (await isRejected(page)) {
+        await page.reload({ waitUntil: 'domcontentloaded', timeout });
+        if (await waitForRejection(page, timeout)) return;
+        throw new Error('SOUNDFRESH_REJECT_NOT_CONFIRMED:status did not persist after reload');
+    }
     // Current Soundfresh pages expose Reject Release as a primary action.
     // Use the button directly; only fall back to the legacy Verify dropdown
     // when that direct action is genuinely absent.
@@ -57,9 +81,10 @@ export async function rejectSoundfreshRelease(page: Page, reason: string): Promi
     await modal.waitFor({ state: "visible", timeout: 10_000 });
 
     let reasonInput = modal.getByRole("textbox").filter({ visible: true }).first();
-    if (!await reasonInput.count()) reasonInput = page.locator('textarea:visible, input[name*="reason" i]:visible').first();
+    if (!await reasonInput.count()) reasonInput = modal.locator('textarea:visible, input[name*="reason" i]:visible').first();
     if (!await reasonInput.count()) throw new Error(`SOUNDFRESH_UI_CHANGED:reject_reason_input:url=${page.url()}`);
     await reasonInput.fill(reason);
+    if (await reasonInput.inputValue() !== reason) throw new Error('SOUNDFRESH_REJECT_REASON_NOT_FILLED');
 
     const submit = modal.getByRole("button", { name: /^(?:Reject|Reject Release|Submit)$/i }).filter({ visible: true }).last();
     if (!await submit.count()) throw new Error(`SOUNDFRESH_UI_CHANGED:reject_submit:url=${page.url()}`);
@@ -69,4 +94,7 @@ export async function rejectSoundfreshRelease(page: Page, reason: string): Promi
         const error = await modal.locator('[role="alert"], .alert-danger, .text-danger, [class*="error" i]').first().innerText().catch(() => "");
         throw new Error(`SOUNDFRESH_REJECT_FAILED:${error || "rejection dialog remained open"}`);
     }
+    if (!await waitForRejection(page, timeout)) throw new Error('SOUNDFRESH_REJECT_NOT_CONFIRMED:status not updated');
+    await page.reload({ waitUntil: 'domcontentloaded', timeout });
+    if (!await waitForRejection(page, timeout)) throw new Error('SOUNDFRESH_REJECT_NOT_CONFIRMED:status did not persist after reload');
 }
