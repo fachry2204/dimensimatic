@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    volumes: [".:/var/www/html"]
+    depends_on: [mysql, redis]
+  worker:
+    image: mcr.microsoft.com/playwright:v1.54.0-noble
+    working_dir: /app
+    command: npm run dev
+    env_file: .env
+    volumes: ["./automation-worker:/app"]
+    network_mode: host
+  mysql:
+    image: mysql:8.4
+    environment: {MYSQL_DATABASE: soundonmatic, MYSQL_USER: soundonmatic, MYSQL_PASSWORD: change-me, MYSQL_ROOT_PASSWORD: change-root}
+    volumes: ["mysql-data:/var/lib/mysql"]
+  redis:
+    image: redis:7-alpine
+volumes: {mysql-data: {}}

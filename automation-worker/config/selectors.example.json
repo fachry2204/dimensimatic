@@ -1,0 +1,17 @@
+{
+  "soundfresh": {
+    "configured": false,
+    "releaseFields": {
+      "title": {"selector":{"strategy":"testId","value":"release-title"},"read":"value"},
+      "primary_artist": {"selector":{"strategy":"label","value":"Primary Artist","exact":true},"read":"value"}
+    },
+    "tracksContainer":{"strategy":"testId","value":"track-row"},
+    "trackFields": {"title":{"selector":{"strategy":"label","value":"Track title","exact":true},"read":"value"}}
+  },
+  "soundon": {
+    "configured": false,
+    "createButton":{"strategy":"role","role":"button","name":"Create release","exact":true},
+    "saveDraftButton":{"strategy":"role","role":"button","name":"Save draft","exact":true},
+    "fields":{"title":{"selector":{"strategy":"label","value":"Release title","exact":true},"type":"text"}}
+  }
+}

@@ -1,0 +1,1 @@
+export const soundfreshSelectors={pendingTab:{role:'tab' as const,name:/pending/i},reviewButton:{role:'button' as const,name:/review release/i},aggregatorLabel:/aggregator/i,saveReviewButton:{role:'button' as const,name:/save|confirm/i}};

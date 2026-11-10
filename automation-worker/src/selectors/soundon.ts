@@ -1,0 +1,1 @@
+export const soundonSelectors={createRelease:{role:'button' as const,name:/create.*release/i},saveDraft:{role:'button' as const,name:/save.*draft/i},forbidden:/submit|publish|distribute|send for review|release now/i};
