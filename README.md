@@ -26,7 +26,7 @@ Buka **Pengaturan Platform → Link Login CMS** untuk mengubah alamat login CMS.
 
 ### Instalasi Dimensimatic terpisah
 
-Installer `Dimensimatic-Setup-v1.1.109.exe` memasang aplikasi di `%LOCALAPPDATA%\Programs\Dimensimatic`. EXE, shortcut, database, profil browser, cookie sesi, mutex aplikasi, dan log berada pada identitas Dimensimatic. Service lokal menggunakan port 8012 (aplikasi) dan 3112 (worker). Installer tidak memperbarui atau mengambil data dari instalasi SoundMatic.
+Installer `Dimensimatic-Setup-v1.1.110.exe` memasang aplikasi di `%LOCALAPPDATA%\Programs\Dimensimatic`. EXE, shortcut, database, profil browser, cookie sesi, mutex aplikasi, dan log berada pada identitas Dimensimatic. Service lokal menggunakan port 8012 (aplikasi) dan 3112 (worker). Installer tidak memperbarui atau mengambil data dari instalasi SoundMatic.
 
 Updater hanya menerima paket `Dimensimatic-Setup-vX.Y.Z.exe`. Repository update bawaan adalah `fachry2204/dimensimatic`.
 

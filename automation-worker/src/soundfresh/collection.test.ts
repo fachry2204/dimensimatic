@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from 'vitest';
 import { chromium, type Browser, type Page } from 'playwright';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
+import { normalizeCmsReleaseDate } from './release-date.js';
 
 let browser: Browser;
 beforeAll(async () => { browser = await chromium.launch({ headless: true }); });
@@ -12,8 +13,8 @@ async function collect(page: Page) {
     const source = readFileSync(new URL('../server.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const bodySource = source.slice(source.indexOf('        const requestedMax ='), source.indexOf('        req.log.info({\n            tableId,\n            selectedPageLength:', source.indexOf('        const requestedMax =')));
     const code = ts.transpile(bodySource + '\nreturn { items, pagesRead };', { target: ts.ScriptTarget.ES2022 });
-    const run = new Function('page', 'table', 'tableWrapper', 'tableId', 'body', 'requestedStatus', 'requestedStatusPattern', 'req', 'progress', `return (async () => { ${code} })()`);
-    return run(page, page.locator('table'), page.locator('.dataTables_wrapper'), 'pending', { options: {} }, 'pending', /pending/i, { log: { info() {}, warn() {} } }, undefined);
+    const run = new Function('page', 'table', 'tableWrapper', 'tableId', 'body', 'requestedStatus', 'requestedStatusPattern', 'req', 'progress', 'normalizeCmsReleaseDate', `return (async () => { ${code} })()`);
+    return run(page, page.locator('table'), page.locator('.dataTables_wrapper'), 'pending', { options: {} }, 'pending', /pending/i, { log: { info() {}, warn() {} } }, undefined, normalizeCmsReleaseDate);
 }
 
 async function fixture(page: Page, options: { total?: number; api?: boolean; stuck?: boolean; sameText?: boolean } = {}) {

@@ -1,4 +1,5 @@
 import { WORKER_VERSION } from './runtime-version.js';
+import { normalizeCmsReleaseDate, completeCmsReleaseDates } from './soundfresh/release-date.js';
 import { startPublishProgress, getPublishProgress, readPublishProgress } from './soundon/publish-progress.js';
 import { collectSoundOnDrafts, draftReferenceFromUrl, openDraftForPublishing, openMatchingSoundOnDraft, waitForPublishLibrary, assertPublishSession, submitSoundOnDraft } from "./soundon/publish-release.js";
 import { cmsLoginControls, submitCmsLogin } from "./browser/cms-login.js";
@@ -409,7 +410,7 @@ async function collectCmsReleases(req: any, reply: any, progress?: (value: any) 
                     : /draft/i.test(status) ? "draft"
                     : normalizedStatus;
                 const releaseDate = releaseDateIndex >= 0
-                    ? (cells[releaseDateIndex] ?? "").trim() || null
+                    ? normalizeCmsReleaseDate(cells[releaseDateIndex])
                     : null;
                 seen.add(releaseId);
                 items.push({ release_id: releaseId, title, primary_artist: primaryArtist, detail_url: detailUrl, track_count: trackCount, workflow_status: workflowStatus, release_date: releaseDate });
@@ -504,6 +505,7 @@ async function collectCmsReleases(req: any, reply: any, progress?: (value: any) 
             pagesRead,
             collectedItems: items.length,
         }, "Soundfresh release collection completed");
+        if(requestedStatus === 'uploading') await completeCmsReleaseDates(browser, items, new URL(page.url()).origin);
         return { success: true, data: { items, has_more: false } };
     } finally {
         await closeContext(browser);
