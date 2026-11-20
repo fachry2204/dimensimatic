@@ -26,16 +26,21 @@ async function waitUploading(page: Page, timeout: number): Promise<boolean> {
     return false;
 }
 const confirmName = /upload\s+release|^\s*(?:Upload|Confirm|Yes|OK|Ya|Konfirmasi)\s*$/i;
+const modalRoots = 'dialog, [role="dialog"], .modal.show';
 async function uploadConfirmation(page: Page): Promise<Locator | null> {
-    const dialogs=page.locator('dialog, [role="dialog"], .modal.show, [class*="modal" i]')
-        .filter({visible:true}).filter({hasText:/upload\s+release/i});
+    // A layout/container can have "modal" in its class and contain the page
+    // trigger. Only real dialog roots may provide a confirmation button.
+    const dialogs=page.locator(modalRoots).filter({visible:true});
     for(let index=await dialogs.count()-1;index>=0;index--) {
+        if(!await dialogs.nth(index).getByText(/upload\s+release|set release status to uploading/i).count()) continue;
         const confirm=dialogs.nth(index).getByRole('button',{name:confirmName}).filter({visible:true}).last();
         if(await confirm.count() && await confirm.isEnabled()) return confirm;
     }
+    // While a real modal loads, never climb outside it looking for a button.
+    if(await dialogs.count()) return null;
     // Current CMS forms can use a plain container with a heading instead of
     // role=dialog/.modal. Stay inside that heading's nearest confirmation panel.
-    const headings=page.getByRole('heading',{name:/upload\s+release/i}).filter({visible:true});
+    const headings=page.getByRole('heading',{name:/(?:upload|publish)\s+release/i}).filter({visible:true});
     for(let index=await headings.count()-1;index>=0;index--) {
         let panel=headings.nth(index).locator('xpath=..');
         for(let depth=0;depth<5;depth++,panel=panel.locator('xpath=..')) {
@@ -61,8 +66,10 @@ export async function moveSoundfreshReleaseToUploading(page: Page, timeout = 200
     }
     const action = page.getByRole('button',{name:/upload\s+release/i})
         .or(page.getByRole('link',{name:/upload\s+release/i})).filter({visible:true}).first();
-    await action.waitFor({state:'visible',timeout}).catch(()=>{throw new Error('SOUNDFRESH_UI_CHANGED:upload_release_button:url='+page.url());});
-    await action.click({timeout});
+    if(!await page.locator(modalRoots).filter({visible:true}).count()) {
+        await action.waitFor({state:'visible',timeout}).catch(()=>{throw new Error('SOUNDFRESH_UI_CHANGED:upload_release_button:url='+page.url());});
+        await action.click({timeout});
+    }
     const deadline=Date.now()+timeout;
     let confirmed=false;
     do {

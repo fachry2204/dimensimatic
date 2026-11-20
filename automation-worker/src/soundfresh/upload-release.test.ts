@@ -88,3 +88,39 @@ test('live CMS regression: Publish Release modal, nested Bootstrap panels and de
   expect(await page.getByText('Upload DSP',{exact:true}).isVisible()).toBe(true);
  }finally{await page.close();}
 },10000);
+
+test('never treats a modal-named page wrapper as the confirmation panel behind a blocking backdrop',async()=>{
+ const page=await browser.newPage();let saved=false;let submissions=0;
+ try {
+  await page.route('https://cms-upload.test/**',route=>{
+   if(route.request().url().endsWith('/save')) {saved=true;submissions++;return route.fulfill({body:'OK'});}
+   return route.fulfill({contentType:'text/html',body:`<style>.modal-backdrop{position:fixed;inset:0;background:#0006;z-index:10}.modal{position:fixed;inset:10%;z-index:20;background:white;padding:20px}</style>
+    <div class="modal-page-layout"><span>${saved?'Upload DSP':'Under Review'}</span>
+     <button type="button" id="background-trigger" onclick="document.querySelector('#backdrop').hidden=false;document.querySelector('#uploading-modal').hidden=false;setTimeout(()=>document.querySelector('#confirm-panel').innerHTML='<h5>Publish Release</h5><p>Set release status to uploading?</p><button type=button>Cancel</button><button type=submit id=confirm-upload>Upload Release</button>',350)">Upload Release</button>
+    </div>
+    <div id="backdrop" class="modal-backdrop fade show" hidden></div>
+    <div id="uploading-modal" class="modal fade show" role="dialog" aria-modal="true" hidden><div class="modal-dialog"><div class="modal-content" id="confirm-panel">Loading...</div></div></div>
+    <script>document.addEventListener('click',event=>{if(event.target.id==='confirm-upload')fetch('/save',{method:'POST'}).then(()=>location.reload())});</script>`});
+  });
+  await page.goto('https://cms-upload.test/admin/releases/3987');
+  await moveSoundfreshReleaseToUploading(page,1500);
+  expect(submissions).toBe(1);
+  expect(await page.getByText('Upload DSP',{exact:true}).isVisible()).toBe(true);
+ }finally{await page.close();}
+},10000);
+
+test('resumes an already open Upload Release modal without clicking the covered page trigger',async()=>{
+ const page=await browser.newPage();let saved=false;let submissions=0;
+ try {
+  await page.route('https://cms-upload.test/**',route=>{
+   if(route.request().url().endsWith('/save')) {saved=true;submissions++;return route.fulfill({body:'OK'});}
+   return route.fulfill({contentType:'text/html',body:`<style>.modal-backdrop{position:fixed;inset:0;background:#0006;z-index:10}.modal{position:fixed;inset:10%;z-index:20;background:white;padding:20px}</style>
+    <span>${saved?'Upload DSP':'Under Review'}</span><button onclick="window.coveredTriggerClicked=true">Upload Release</button>
+    ${saved?'':`<div class="modal-backdrop"></div><div class="modal show" role="dialog"><h5>Publish Release</h5><p>Set release status to uploading?</p><button onclick="fetch('/save',{method:'POST'}).then(()=>location.reload())">Upload Release</button></div>`}`});
+  });
+  await page.goto('https://cms-upload.test/admin/releases/3987');
+  await moveSoundfreshReleaseToUploading(page,1500);
+  expect(submissions).toBe(1);
+  expect(await page.evaluate(()=>(window as any).coveredTriggerClicked)).toBeUndefined();
+ }finally{await page.close();}
+},10000);
