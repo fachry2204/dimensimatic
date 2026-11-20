@@ -5,6 +5,73 @@ import { draftLookupReference } from './draft-finder.js';
 export type PublishDraft = { draft_id: string; draft_url: string; title: string; artist: string; reference_error?: string };
 const rowsSelector = 'tbody tr, [role="rowgroup"] [role="row"], [data-testid="draft-card"]';
 
+// Progress bars elsewhere in the library (including static upload progress)
+// are not evidence that the Draft table is loading. Semi keeps its spin
+// wrapper mounted after loading and marks it semi-spin-hidden.
+export async function waitForDraftListLoading(page: Page, timeout: number): Promise<void> {
+    const loading = page.locator([
+        '.semi-spin:not(.semi-spin-hidden)', '.ant-spin-spinning', '.arco-spin-loading',
+        'table[aria-busy="true"]', '[role="table"][aria-busy="true"]',
+        '[role="rowgroup"][aria-busy="true"]', '[data-testid="draft-list"][aria-busy="true"]',
+        '[class*="table" i][aria-busy="true"]',
+    ].join(',' )).filter({ visible: true });
+    const deadline = Date.now() + timeout;
+    while (await loading.count()) {
+        await assertPublishSession(page);
+        if (Date.now() >= deadline) throw new Error('SOUNDON_DRAFT_LIST_LOADING: Daftar Draft belum selesai dimuat oleh SoundOn. '+await publishSearchDiagnostics(page));
+        await page.waitForTimeout(Math.min(100, Math.max(1, deadline-Date.now())));
+    }
+}
+
+async function searchPublishDrafts(page: Page, search: import('playwright').Locator, query: string, timeout: number): Promise<void> {
+    let pending: Promise<void> | undefined;
+    let expectedIds: string[] | undefined;
+    const observe = (request: Request): void => {
+        const url = new URL(request.url());
+        if (url.origin !== new URL(page.url()).origin || url.pathname !== '/api/search/entity') return;
+        let body: any;
+        try { body = request.postDataJSON(); } catch { return; }
+        if (!Array.isArray(body?.queries)) return;
+        if (query ? !body.queries.some((entry: any) => entry.queryValue === query)
+            : body.queries.some((entry: any) => entry.queryValue)) return;
+        pending = request.response().then(async response => {
+            if (!response?.ok()) throw new Error('SOUNDON_DRAFT_SEARCH_FAILED: Permintaan pencarian Draft ditolak atau koneksi ke SoundOn terputus.');
+            if (await response.finished()) throw new Error('SOUNDON_DRAFT_SEARCH_FAILED: Respons pencarian Draft terputus.');
+            const result = await response.json();
+            if (result.baseResp?.errorCode) throw new Error('SOUNDON_DRAFT_SEARCH_FAILED: SoundOn menolak pencarian Draft.');
+            if (Array.isArray(result.ids)) expectedIds = result.ids.map(String);
+        });
+        pending.catch(() => undefined);
+    };
+    page.on('request', observe);
+    try {
+        for (let attempt=0;attempt<2;attempt++) {
+            await assertPublishSession(page);
+            await search.fill('');
+            if(query) await search.pressSequentially(query,{delay:10});
+            else await search.press('Backspace');
+            await search.press('Enter');
+            await page.waitForTimeout(Math.min(timeout,800));
+            if(await search.inputValue()===query) break;
+            if(attempt===1) throw new Error('SOUNDON_DRAFT_SEARCH_RESET: Kolom pencarian direset saat halaman memuat ulang.');
+        }
+        if (pending) {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            try {
+                await Promise.race([pending, new Promise<never>((_, reject) => {
+                    timer = setTimeout(() => reject(new Error('SOUNDON_DRAFT_SEARCH_TIMEOUT: Respons pencarian Draft belum selesai.')), timeout);
+                })]);
+            } finally { if(timer) clearTimeout(timer); }
+        }
+        await waitForDraftListLoading(page, timeout);
+        if (expectedIds) await page.waitForFunction(ids => {
+            const rows = Array.from(document.querySelectorAll('[data-row-key]')).filter(row => (row as HTMLElement).getClientRects().length);
+            if (!ids.length) return !rows.length;
+            return ids.every(id => rows.some(row => row.getAttribute('data-row-key') === id));
+        }, expectedIds, {timeout}).catch(() => {throw new Error('SOUNDON_DRAFT_SEARCH_NOT_RENDERED: Hasil pencarian Draft belum tampil sesuai respons SoundOn.');});
+    } finally { page.off('request', observe); }
+}
+
 const paginationScope = '[class*="pagination" i], [class*="paginator" i], .semi-page, nav[aria-label*="page" i], nav[aria-label*="pagination" i], [data-testid*="pagination" i], [class*="pager" i], [class*="paging" i], [data-dimensimatic-pagination]';
 
 async function discoverDraftPagination(page: Page): Promise<void> {
@@ -263,6 +330,7 @@ export async function openMatchingSoundOnDraft(page: Page, title: string, artist
             await page.waitForTimeout(Math.min(timeout,400));
         }
     }
+    await waitForDraftListLoading(page,timeout);
     onProgress?.(25,'Mencari judul di draft SoundOn');
     let search=page.getByPlaceholder(/search|cari/i).or(page.locator('input[type="search"]')).filter({visible:true}).first();
     if(!await search.count()) {
@@ -276,24 +344,11 @@ export async function openMatchingSoundOnDraft(page: Page, title: string, artist
             if (query === '') onProgress?.(25,'Pencarian judul belum cocok; memeriksa halaman daftar Draft');
             // Enter also resets pagination. Clear any previous query before the
             // fallback scan, because the server search can omit an existing draft.
-            for(let attempt=0;attempt<2;attempt++) {
-                await assertPublishSession(page);
-                await search.fill('');
-                if(query) await search.pressSequentially(query,{delay:10});
-                else await search.press('Backspace');
-                await search.press('Enter');
-                await page.waitForTimeout(Math.min(timeout,800));
-                if(await search.inputValue()===query) break;
-                if(attempt===1) throw new Error('SOUNDON_DRAFT_SEARCH_RESET: Kolom pencarian direset saat halaman memuat ulang. Coba ulang setelah halaman Draft siap.');
-            }
-            // A pending request/spinner must finish before unfiltered rows are
-            // interpreted as the fallback list. Loading is never "not found".
-            await page.waitForLoadState('networkidle',{timeout:Math.min(timeout,10000)}).catch(()=>undefined);
-            const loading=page.locator('[aria-busy="true"],.ant-spin-spinning,.arco-spin-loading,[role="progressbar"]').filter({visible:true});
-            await loading.first().waitFor({state:'hidden',timeout}).catch(()=>{throw new Error('SOUNDON_DRAFT_LIST_LOADING: Daftar Draft masih dimuat.');});
+            await searchPublishDrafts(page,search,query,timeout);
         }
         const seen=new Set<string>();
         for(let number=1;number<=10000;number++) {
+            await waitForDraftListLoading(page,timeout);
             // React lists can consist entirely of divs, so inspect the smallest
             // visible ancestor containing both exact metadata values, not tbody.
             const mark=async()=>page.evaluate(wanted=>{

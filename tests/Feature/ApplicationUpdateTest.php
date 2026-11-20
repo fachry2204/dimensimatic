@@ -16,6 +16,27 @@ final class ApplicationUpdateTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_private_repository_error_explains_access_instead_of_blaming_internet(): void
+    {
+        $this->actingAs(User::factory()->create());
+        config(['automation.update_repository' => 'fachry2204/dimensimatic']);
+        Http::fake(['*' => Http::response(['message' => 'Not Found'], 404)]);
+        Livewire::test(ApplicationUpdate::class)
+            ->set('latestVersion', '9.9.9')->set('releaseUrl', 'https://example.com/stale')
+            ->call('checkForUpdate')->assertSet('updateAvailable', false)
+            ->assertSet('latestVersion', null)->assertSet('releaseUrl', null)
+            ->assertSee('HTTP 404')->assertSee('Repository mungkin privat');
+    }
+
+    public function test_github_rate_limit_is_reported_separately(): void
+    {
+        $this->actingAs(User::factory()->create());
+        Http::fake(['*' => Http::response(['message' => 'API rate limit exceeded'], 403)]);
+        Livewire::test(ApplicationUpdate::class)->call('checkForUpdate')
+            ->assertSet('updateAvailable', false)->assertSee('HTTP 403')
+            ->assertSee('GitHub membatasi atau menolak akses update');
+    }
+
     public function test_default_update_feed_uses_dimensimatic_when_environment_value_is_empty(): void
     {
         $environment = \Illuminate\Support\Env::getRepository();
@@ -103,8 +124,8 @@ final class ApplicationUpdateTest extends TestCase
         config(['automation.app_version' => '1.1.57']);
 
         Livewire::test(ApplicationUpdate::class)
-            ->assertSet('currentVersion', '1.1.106')
-            ->assertSee('v1.1.106');
+            ->assertSet('currentVersion', '1.1.107')
+            ->assertSee('v1.1.107');
     }
 
     public function test_installer_updates_version_without_rotating_existing_credentials(): void

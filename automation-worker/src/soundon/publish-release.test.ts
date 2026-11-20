@@ -1,6 +1,6 @@
 import {beforeAll, afterAll, test, expect} from 'vitest';
 import {chromium, type Browser} from 'playwright';
-import {collectSoundOnDrafts, openDraftForPublishing, openMatchingSoundOnDraft, submitSoundOnDraft} from './publish-release.js';
+import {collectSoundOnDrafts, openDraftForPublishing, openMatchingSoundOnDraft, submitSoundOnDraft, waitForDraftListLoading} from './publish-release.js';
 import {findReleaseStatuses, publishedStatusByDraftId, selectAllReleasesForConfirmation, readVisiblePublishedStatus} from './release-status-finder.js';
 let browser: Browser;
 beforeAll(async()=>{browser=await chromium.launch({headless:true});});
@@ -494,5 +494,61 @@ test('resolves a visually clipped title from its full accessible title',async()=
    : '<table><tbody><tr><td><a aria-label="Our Love Among the Flowers" href="/library/publish/single?source=draft&id=992">Our Love Among...</a></td><td>Caleb Thomas Parker</td></tr></tbody></table>'}));
   await page.goto('https://www.soundon.global/library/list?type=draft');
   expect(await openMatchingSoundOnDraft(page,'Our Love Among the Flowers','Caleb Thomas Parker',500)).toBe('992');
+ }finally{await page.close();}
+});
+
+test('ignores unrelated static progress bars and inactive Semi spin wrappers while opening a draft',async()=>{
+ const page=await browser.newPage();try {
+  await page.route('https://www.soundon.global/**',route=>route.fulfill({contentType:'text/html',body:route.request().url().includes('/publish/') ? '<button>Next</button>' : `
+   <div role="progressbar" aria-valuenow="25">Upload progress</div><div aria-busy="true">Unrelated task</div>
+   <div class="semi-spin semi-spin-hidden"><input type="search"><table><tbody><tr><td><a href="/library/publish/single?id=901">Little Stars in My Heart</a></td><td>Blake Harrison Dawson</td></tr></tbody></table></div>`}));
+  await page.goto('https://www.soundon.global/library/list?type=draft');
+  expect(await openMatchingSoundOnDraft(page,'Little Stars in My Heart','Blake Harrison Dawson',1000)).toBe('901');
+ }finally{await page.close();}
+});
+
+test('waits for the actual Draft search response and delayed React rows while ignoring static progress',async()=>{
+ const context=await browser.newContext();const page=await context.newPage();try {
+  await context.route('https://www.soundon.global/**',async route=>{
+   if(route.request().url().includes('/api/search/entity')) {
+    await new Promise(resolve=>setTimeout(resolve,1100));
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({ids:['902'],baseResp:{errorCode:0}})});
+   }
+   return route.fulfill({contentType:'text/html',body:route.request().url().includes('/publish/') ? '<button>Next</button>' : `
+    <input placeholder="Find release by album name or artist name"><div role="progressbar">Static</div>
+    <div id="spin" class="semi-spin semi-spin-hidden"><table><tbody id="rows"><tr data-row-key="old"><td>Other song</td><td>Other artist</td></tr></tbody></table></div>
+    <script>document.querySelector('input').onkeydown=async event=>{
+     if(event.key!=='Enter')return;
+     spin.classList.remove('semi-spin-hidden');
+     const result=await fetch('/api/search/entity',{method:'POST',body:JSON.stringify({queries:[{queryValue:event.target.value}]})}).then(r=>r.json());
+     setTimeout(()=>{rows.innerHTML='<tr data-row-key="902"><td><a href="/library/publish/single?id=902">Little Stars in My Heart</a></td><td>Blake Harrison Dawson</td></tr>';spin.classList.add('semi-spin-hidden');},400);
+    };</script>`});
+  });
+  await page.goto('https://www.soundon.global/library/list?type=draft');
+  expect(await openMatchingSoundOnDraft(page,'Little Stars in My Heart','Blake Harrison Dawson',2500)).toBe('902');
+ }finally{await context.close();}
+},10000);
+
+test('reports a failed Draft search request instead of interpreting stale matching rows',async()=>{
+ const page=await browser.newPage();try {
+  await page.route('https://www.soundon.global/**',route=>route.request().url().includes('/api/search/entity')
+   ? route.fulfill({status:503,body:'Unavailable'})
+   : route.fulfill({contentType:'text/html',body:`<input type="search"><table><tbody><tr><td>Track</td><td>Artist</td></tr></tbody></table>
+    <script>document.querySelector('input').onkeydown=event=>{if(event.key==='Enter')fetch('/api/search/entity',{method:'POST',body:JSON.stringify({queries:[{queryValue:event.target.value}]})})};</script>`}));
+  await page.goto('https://www.soundon.global/library/list?type=draft');
+  await expect(openMatchingSoundOnDraft(page,'Track','Artist',1000)).rejects.toThrow('SOUNDON_DRAFT_SEARCH_FAILED');
+ }finally{await page.close();}
+});
+
+
+test('waits for every active list spinner and reports a genuinely stalled list',async()=>{
+ const page=await browser.newPage();try {
+  await page.goto('about:blank');
+  await page.setContent('<div class="semi-spin" id="first">Loading</div><div class="ant-spin-spinning" id="second">Loading</div>');
+  await page.evaluate(()=>{setTimeout(()=>document.querySelector('#first')?.classList.add('semi-spin-hidden'),100);setTimeout(()=>document.querySelector('#second')?.remove(),350);});
+  await waitForDraftListLoading(page,1000);
+  expect(await page.locator('#second').count()).toBe(0);
+  await page.setContent('<table aria-busy="true"><tbody><tr><td>Loading</td></tr></tbody></table>');
+  await expect(waitForDraftListLoading(page,150)).rejects.toThrow('SOUNDON_DRAFT_LIST_LOADING');
  }finally{await page.close();}
 });

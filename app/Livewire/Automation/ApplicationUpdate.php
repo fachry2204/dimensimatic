@@ -44,18 +44,33 @@ final class ApplicationUpdate extends Component
         $this->updateAvailable = false;
         $this->installerName = null;
         $this->installerUrl = null;
+        $this->latestVersion = null;
+        $this->latestTag = null;
+        $this->releaseUrl = null;
         if (trim($repository) === '') {
             $this->message = \App\Support\SystemBranding::text('Repository update Dimensimatic belum dikonfigurasi.');
 
             return;
         }
         try {
-            $release = Http::acceptJson()
+            $response = Http::acceptJson()
                 ->withHeaders(['User-Agent' => 'Dimensimatic-Updater'])
                 ->timeout(20)
-                ->get("https://api.github.com/repos/{$repository}/releases/latest")
-                ->throw()
-                ->json();
+                ->get("https://api.github.com/repos/{$repository}/releases/latest");
+            if ($response->failed()) {
+                $this->message = match ($response->status()) {
+                    404 => 'GitHub tidak menyediakan Release yang dapat diakses (HTTP 404). Repository mungkin privat, alamat salah, atau belum memiliki Release publik. Cek Update memerlukan repository dan Release yang dapat diakses tanpa login GitHub.',
+                    401 => 'Akses GitHub ditolak (HTTP 401). Repository update memerlukan autentikasi.',
+                    403, 429 => 'GitHub membatasi atau menolak akses update (HTTP '.$response->status().'). Coba lagi nanti dan periksa akses repository.',
+                    default => 'Server GitHub gagal melayani pemeriksaan update (HTTP '.$response->status().'). Coba lagi nanti.',
+                };
+                return;
+            }
+            $release = $response->json();
+            if (! is_array($release) || ! isset($release['tag_name'])) {
+                $this->message = 'Respons GitHub bukan data Release yang valid. Periksa alamat repository update.';
+                return;
+            }
         } catch (Throwable $error) {
             $this->message = 'Gagal cek update dari GitHub. Periksa koneksi internet lalu coba lagi.';
             $this->updateAvailable = false;
