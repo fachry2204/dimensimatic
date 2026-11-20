@@ -1,6 +1,6 @@
 param(
-    [string]$Output = (Join-Path (Split-Path -Parent $PSScriptRoot) 'Dimensimatic-Setup-v1.1.107.exe'),
-    [string]$PublishDirectory = (Join-Path $PSScriptRoot 'installer\bin\publish-v1.1.107'),
+    [string]$Output = (Join-Path (Split-Path -Parent $PSScriptRoot) 'Dimensimatic-Setup-v1.1.108.exe'),
+    [string]$PublishDirectory = (Join-Path $PSScriptRoot 'installer\bin\publish-v1.1.108'),
     [string]$WorkerDistDirectory = (Join-Path (Split-Path -Parent $PSScriptRoot) 'automation-worker\dist'),
     [string]$StageDirectory = (Join-Path $PSScriptRoot 'installer\stage')
 )
