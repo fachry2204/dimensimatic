@@ -647,7 +647,7 @@ final class ReleaseStatus extends Component
         $scanPhase = $scanActive ? ($scanRun->summary_json['phase'] ?? ($scanRun->status->value === 'queued' ? 'queued' : ($scanTotal > 0 ? 'checking' : 'collecting'))) : 'idle';
         $scanLabel = match ($scanPhase) {
             'queued' => 'Menunggu antrean pemeriksaan...',
-            'collecting' => data_get($scanRun?->summary_json, 'collection_progress.message') ?: 'Mengambil rilisan Uploading...',
+            'collecting' => 'Mengambil rilisan Uploading...',
             'checking' => 'Memeriksa SoundOn '.$scanFinished.' / '.$scanTotal,
             default => 'Cek Status SoundOn',
         };

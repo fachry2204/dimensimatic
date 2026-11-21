@@ -62,7 +62,7 @@ final class PlaywrightClient
 
     public function cmsCollectionStatus(string $id): array
     {
-        return $this->post('/v1/soundfresh/under-review/collect/status', ['collection_id' => $id], null, 15);
+        return $this->post('/v1/soundfresh/under-review/collect/status', ['collection_id' => $id]);
     }
 
     public function runtimeInfo(): array
@@ -103,31 +103,13 @@ final class PlaywrightClient
         ])['matches'] ?? [];
     }
 
-    public function uploading(?int $limit = null, ?array $sessionState = null, ?callable $onProgress = null): array
+    public function uploading(?int $limit = null, ?array $sessionState = null): array
     {
-        $id = (string) \Illuminate\Support\Str::uuid();
-        $result = $this->post('/v1/soundfresh/pending', [
+        return $this->post('/v1/soundfresh/pending', [
             'action' => 'list_uploading_releases',
-            'collection_id' => $id,
             'session_state' => $sessionState,
-            'options' => ['max_items' => $limit, 'include_multi_track' => true, 'release_status' => 'uploading', 'async_collection' => $onProgress !== null],
-        ], null, $onProgress ? 20 : null);
-        if (array_key_exists('items', $result) || $onProgress === null) return $result['items'] ?? [];
-        if (($result['collection_id'] ?? null) !== $id) throw new RuntimeException('CMS_COLLECTION_NOT_STARTED: Worker belum memulai pengambilan Uploading.');
-        $deadline = microtime(true) + 1200;
-        $lastActivity = microtime(true);
-        $revision = null;
-        do {
-            $snapshot = $this->cmsCollectionStatus($id);
-            $onProgress($snapshot);
-            if (($snapshot['status'] ?? '') === 'completed') return $snapshot['items'] ?? [];
-            if (($snapshot['status'] ?? '') === 'failed') throw new RuntimeException($snapshot['error'] ?? 'Pengambilan Uploading CMS gagal.');
-            $nextRevision = json_encode([$snapshot['updatedAt'] ?? null, $snapshot['message'] ?? null, $snapshot['collected'] ?? null]);
-            if ($nextRevision !== $revision) { $revision = $nextRevision; $lastActivity = microtime(true); }
-            if (microtime(true) - $lastActivity > 180) throw new RuntimeException('CMS_COLLECTION_STALLED: Tidak ada progres CMS selama 3 menit. Periksa worker dan sesi CMS, lalu coba ulang.');
-            usleep(1_000_000);
-        } while (microtime(true) < $deadline);
-        throw new RuntimeException('CMS_COLLECTION_TIMEOUT: Pengambilan Uploading melewati batas 20 menit. Silakan periksa ulang.');
+            'options' => ['max_items' => $limit, 'include_multi_track' => true, 'release_status' => 'uploading'],
+        ])['items'] ?? [];
     }
 
     public function allSoundfreshReleases(?int $limit = null, ?array $sessionState = null): array

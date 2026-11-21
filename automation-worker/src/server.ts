@@ -420,7 +420,7 @@ async function collectCmsReleases(req: any, reply: any, progress?: (value: any) 
             const infoText = await tableWrapper.locator('.dataTables_info, .dt-info').innerText().catch(() => '');
             const totalMatch = infoText.replace(/,/g,'').match(/of\s+(\d+)\s+entries/i);
             if(totalMatch) expectedTotal=Number(totalMatch[1]);
-            progress?.({collected:items.length,total:expectedTotal,page:pagesRead,message:`Membaca ${requestedStatus === 'uploading' ? 'Uploading' : 'Under Review'} CMS halaman ${pagesRead}`});
+            progress?.({collected:items.length,total:expectedTotal,page:pagesRead,message:`Membaca Under Review CMS halaman ${pagesRead}`});
             const firstRowBefore = await table.locator("tbody tr").first().innerText().catch(() => "");
             const nextCandidates = tableWrapper.locator([
                 // DataTables 1.x usually nests an anchor/button inside the
@@ -505,15 +505,13 @@ async function collectCmsReleases(req: any, reply: any, progress?: (value: any) 
             pagesRead,
             collectedItems: items.length,
         }, "Soundfresh release collection completed");
-        if(requestedStatus === 'uploading') await completeCmsReleaseDates(browser, items, new URL(page.url()).origin,
-            (completed,total)=>progress?.({date_completed:completed,date_total:total,message:`Membaca tanggal rilis CMS ${completed} / ${total}`}));
+        if(requestedStatus === 'uploading') await completeCmsReleaseDates(browser, items, new URL(page.url()).origin);
         return { success: true, data: { items, has_more: false } };
     } finally {
         await closeContext(browser);
     }
 }
-app.post("/v1/soundfresh/pending", (req, reply) => (req.body as any)?.options?.async_collection
-    ? startCmsCollection(req, reply) : collectCmsReleases(req, reply));
+app.post("/v1/soundfresh/pending", (req, reply) => collectCmsReleases(req, reply));
 app.post("/v1/soundfresh/releases/extract", async (req, reply) => {
     const body = req.body as any;
     const id = String(body.job_id);
@@ -710,30 +708,28 @@ app.post("/v1/soundon/drafts/find-many", async (req, reply) => {
 type DraftCollectionState = { status: 'queued'|'running'|'completed'|'failed'; collected: number; total: number|null; page: number; message: string; items?: Awaited<ReturnType<typeof collectSoundOnDrafts>>; error?: string; updatedAt: number };
 const draftCollections = new Map<string,DraftCollectionState>();
 const cmsCollections = new Map<string, Omit<DraftCollectionState, 'items'> & {items?: any[]}>();
-async function startCmsCollection(req: any, reply: any) {
+app.post('/v1/soundfresh/under-review/collect/start', async (req, reply) => {
     const body=req.body as any;
     if(!/^[a-f0-9-]{36}$/i.test(body.collection_id ?? '')) return reply.code(422).send({success:false,error:'COLLECTION_ID_REQUIRED'});
     for(const [key,value] of cmsCollections) if(Date.now()-value.updatedAt>3600000) cmsCollections.delete(key);
     const id=String(body.collection_id);
-    const sourceStatus=body?.options?.release_status === 'uploading' ? 'uploading' : 'under_review';
     if(cmsCollections.has(id)) return {success:true,data:{collection_id:id}};
     const state:Omit<DraftCollectionState,'items'> & {items?:any[]}={status:'queued',collected:0,total:null,page:0,message:'Menunggu browser CMS',updatedAt:Date.now()};
     cmsCollections.set(id,state);
     void (async()=>{
         await acquireBrowserSlot();
         try {
-            state.status='running';state.message=`Membaca seluruh ${sourceStatus} dari CMS`;state.updatedAt=Date.now();
+            state.status='running';state.message='Membaca seluruh Under Review dari CMS';
             const failureReply={code:(_code:number)=>({send:(value:any)=>{throw new Error(value.error || 'CMS_COLLECTION_FAILED');}})};
-            const result=await collectCmsReleases({body:{...body,options:{release_status:sourceStatus,include_multi_track:true,max_items:null}},log:req.log},failureReply,
+            const result=await collectCmsReleases({body:{...body,options:{release_status:'under_review',include_multi_track:true,max_items:null}},log:req.log},failureReply,
                 value=>Object.assign(state,value,{updatedAt:Date.now()}));
             state.items=result.data.items;state.collected=state.items!.length;state.total=state.collected;
-            state.status='completed';state.message=`Seluruh ${sourceStatus} CMS selesai dibaca`;
+            state.status='completed';state.message='Seluruh Under Review CMS selesai dibaca';
         } catch(error) {state.status='failed';state.error=error instanceof Error ? error.message : 'CMS_COLLECTION_FAILED';}
         finally {state.updatedAt=Date.now();releaseBrowserSlot({releaseBrowserSlot:true});}
     })().catch(error=>{state.status='failed';state.error=String(error);});
     return {success:true,data:{collection_id:id}};
-}
-app.post('/v1/soundfresh/under-review/collect/start', startCmsCollection);
+});
 app.post('/v1/soundfresh/under-review/collect/status',async(req,reply)=>{
     const state=cmsCollections.get(String((req.body as any).collection_id ?? ''));
     if(!state) return reply.code(404).send({success:false,error:'COLLECTION_NOT_FOUND: Ambil ulang Under Review CMS.'});

@@ -21,7 +21,6 @@ final class QueueSoundOnStatusChecks implements ShouldQueue
     use Queueable;
 
     public int $tries = 1;
-    public int $timeout = 1300;
 
     public function __construct(
         public readonly ?int $userId = null,
@@ -69,11 +68,7 @@ final class QueueSoundOnStatusChecks implements ShouldQueue
 
             // Bulk collection always reads every Uploading release, including
             // jobs serialized before the source selector was removed.
-            $canonicalItems = collect($worker->uploading(null, $soundfresh->session_state_encrypted, function (array $progress) use ($run): void {
-                if (! AutomationRun::query()->whereKey($run->id)->where('status', 'running')->exists()) throw new \RuntimeException('Pemeriksaan telah dihentikan.');
-                $run->refresh();
-                $run->update(['summary_json' => [...($run->summary_json ?? []), 'collection_progress' => \Illuminate\Support\Arr::only($progress, ['status', 'message', 'collected', 'total', 'page', 'date_completed', 'date_total']), 'heartbeat_at' => now()->toIso8601String()]]);
-            }))
+            $canonicalItems = collect($worker->uploading(null, $soundfresh->session_state_encrypted))
                 ->keyBy(fn (array $item): string => (string) $item['release_id'])
                 ->map(fn (array $item): array => [...$item, 'workflow_status' => 'uploading'])
                 ->values();
