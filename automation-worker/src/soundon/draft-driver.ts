@@ -1,4 +1,4 @@
-import type { Locator, Page } from "playwright";
+import type { Locator, Page, Request, Response } from "playwright";
 import { basename } from "node:path";
 import type { Registry } from "../selectors/registry.js";
 import { locate, readField, valueAt } from "../selectors/registry.js";
@@ -2246,7 +2246,7 @@ async function setSearchFieldValue(
                         // Songwriter/Lyricist dialogs can be plain name forms
                         // without a results list. A correctly typed name and
                         // enabled Submit is the valid selection in that UI.
-                        if (!entitySelected && /^(?:Songwriters|Lyricists)$/i.test(label)) {
+                        if (!entitySelected && await isPlainWriterNameForm(dialog, label)) {
                             const typed = await activeInput.inputValue().catch(() => "");
                             if (sameEntityName(typed, value) && await submit.first().isEnabled().catch(() => false)) {
                                 entitySelected = true;
@@ -2338,10 +2338,10 @@ async function setSearchFieldValue(
                                 `SOUNDON_ENTITY_MATCH_REQUIRED:${label}:${value}:submit_disabled:${dialogMessage}`,
                             );
                         }
-                        await resilientClick(submitButton);
-                        const savedAfterSubmit = await waitForEntitySave(
+                        const savedAfterSubmit = await submitEntityAndVerify(
                             page,
                             dialog,
+                            submitButton,
                             label,
                             value,
                             entitySaveTimeout,
@@ -2546,10 +2546,13 @@ async function waitForEntitySave(
     label: string,
     value: string,
     timeout: number,
+    saving?: { pending: Set<Request>; error: string | null; completedAt: number },
 ): Promise<boolean> {
     const deadline = Date.now() + timeout;
+    const hardDeadline = Date.now() + Math.max(timeout * 5, timeout + 1000);
     let confirmedAt: number | undefined;
-    while (Date.now() < deadline) {
+    while (Date.now() < hardDeadline && (Date.now() < deadline || saving?.pending.size || Date.now() < (saving?.completedAt ?? 0) + Math.max(timeout, 1000))) {
+        if (saving?.error) throw new Error(`SOUNDON_ENTITY_SAVE_REJECTED:${label}:${value}:${saving.error}`);
         const hidden = !await dialog.isVisible().catch(() => false);
         const persisted = await waitForEntityCard(page, label, value, 150);
         if (hidden && persisted) {
@@ -2562,7 +2565,44 @@ async function waitForEntitySave(
         // Never close/cancel that editor while SoundOn is saving it.
         await page.waitForTimeout(150);
     }
+    if (saving?.pending.size) throw new Error(`SOUNDON_ENTITY_SAVE_TIMEOUT:${label}:${value}:Permintaan penyimpanan SoundOn belum selesai; kredit belum terkonfirmasi.`);
     return false;
+}
+
+export async function isPlainWriterNameForm(dialog: Locator, label: string): Promise<boolean> {
+    return /^(?:Songwriters|Lyricists)$/i.test(label)
+        && await dialog.locator('input[type="text"]:visible').count() === 1
+        && await dialog.locator('[role="combobox"],.semi-select-content-wrapper').count() === 0;
+}
+
+export async function submitEntityAndVerify(page: Page, dialog: Locator, submit: Locator, label: string, value: string, timeout = entitySaveTimeout): Promise<boolean> {
+    // Plain songwriter forms can commit their controlled Name field on blur.
+    const names=dialog.locator('input[type="text"]:visible');
+    if (await isPlainWriterNameForm(dialog, label)) {
+        await names.first().press('Tab');
+    }
+    const saving={pending:new Set<Request>(),error:null as string|null,completedAt:0};
+    const relevant=(request:Request)=>new URL(request.url()).origin===new URL(page.url()).origin
+        && ['POST','PUT','PATCH'].includes(request.method())
+        && !/analytics|telemetry|\/(log|collect|report|event)(\/|$)/i.test(new URL(request.url()).pathname);
+    const onRequest=(request:Request)=>{if(relevant(request)) saving.pending.add(request);};
+    const onFailure=(request:Request)=>{if(saving.pending.delete(request)) saving.error='Koneksi ke SoundOn terputus saat menyimpan kredit.';};
+    const onResponse=(response:Response)=>{const request=response.request();if(!saving.pending.has(request)) return;
+        void (async()=>{
+            try {
+                if(!response.ok()) saving.error='HTTP '+response.status();
+                else {
+                    const data=await response.json().catch(()=>null);
+                    if(data?.baseResp?.errorCode) saving.error='SoundOn errorCode='+data.baseResp.errorCode;
+                }
+            } finally {saving.pending.delete(request);saving.completedAt=Date.now();}
+        })().catch(()=>{saving.error='Respons penyimpanan kredit tidak lengkap.';});
+    };
+    page.on('request',onRequest);page.on('requestfailed',onFailure);page.on('response',onResponse);
+    try {
+        await resilientClick(submit);
+        return await waitForEntitySave(page,dialog,label,value,timeout,saving);
+    } finally {page.off('request',onRequest);page.off('requestfailed',onFailure);page.off('response',onResponse);}
 }
 
 async function resilientClick(locator: Locator): Promise<void> {

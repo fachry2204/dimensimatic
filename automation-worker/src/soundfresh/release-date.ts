@@ -33,16 +33,19 @@ export async function readPlannedReleaseDate(page: Page): Promise<string | null>
     return null;
 }
 
-export async function completeCmsReleaseDates(context: BrowserContext, items: Array<{detail_url:string;release_date:string|null}>, origin: string): Promise<void> {
+export async function completeCmsReleaseDates(context: BrowserContext, items: Array<{detail_url:string;release_date:string|null}>, origin: string, onProgress?: (completed:number,total:number)=>void): Promise<void> {
     const missing=items.filter(item=>!normalizeCmsReleaseDate(item.release_date));
     if(!missing.length) return;
     const detail=await context.newPage();
     try {
+        onProgress?.(0,missing.length);
+        let completed=0;
         for(const item of missing) {
             const url=new URL(item.detail_url);
             if(url.origin !== origin || !/^\/admin\/releases\/\d+\/?$/.test(url.pathname)) throw new Error('CMS_RELEASE_DATE_INVALID_DETAIL_URL');
             await detail.goto(url.href,{waitUntil:'domcontentloaded',timeout:20000});
             item.release_date=await readPlannedReleaseDate(detail);
+            onProgress?.(++completed,missing.length);
         }
     } finally { await detail.close(); }
 }

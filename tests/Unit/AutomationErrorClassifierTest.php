@@ -8,6 +8,14 @@ use Tests\TestCase;
 
 class AutomationErrorClassifierTest extends TestCase
 {
+    public function test_unconfirmed_credit_requests_need_attention_instead_of_blind_retry(): void
+    {
+        foreach (['SOUNDON_ENTITY_SAVE_REJECTED:Songwriters:Natasha Khairani:HTTP 503', 'SOUNDON_ENTITY_SAVE_TIMEOUT:Songwriters:Natasha Khairani'] as $message) {
+            $this->assertSame(['code' => 'SOUNDON_CONTRIBUTOR_NOT_PERSISTED', 'disposition' => 'needs_attention'],
+                (new AutomationErrorClassifier)->classify(new \RuntimeException($message)));
+        }
+    }
+
     public function test_monetization_failure_is_not_misclassified_as_changed_ui(): void
     {
         $this->assertSame(['code' => 'SOUNDON_MONETIZATION_NOT_ENABLED', 'disposition' => 'needs_attention'],

@@ -34,6 +34,9 @@ final class AutomationErrorClassifier
             return ['code' => 'NETWORK_TIMEOUT', 'disposition' => 'retry'];
         }
         $message = strtoupper($error->getMessage());
+        if (str_contains($message, 'SOUNDON_ENTITY_SAVE_REJECTED') || str_contains($message, 'SOUNDON_ENTITY_SAVE_TIMEOUT')) {
+            return ['code' => 'SOUNDON_CONTRIBUTOR_NOT_PERSISTED', 'disposition' => 'needs_attention'];
+        }
         if (str_contains($message, 'SOUNDFRESH_REVIEW_') || str_contains($message, 'SOUNDFRESH_UI_CHANGED:REVIEW_RELEASE')) {
             return ['code' => 'CMS_REVIEW_FAILED', 'disposition' => 'needs_attention'];
         }
