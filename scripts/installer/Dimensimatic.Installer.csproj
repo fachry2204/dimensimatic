@@ -2,8 +2,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-    <AssemblyName>Dimensimatic-Setup</AssemblyName><Version>1.1.110</Version>
-    <ApplicationIcon>..\assets\dimensimatic-icon.ico</ApplicationIcon><Product>Dimensimatic Setup</Product><Title>Dimensimatic Setup</Title><Company>Dimensi Suara</Company>
+    <AssemblyName>Dimensimatic-Setup</AssemblyName><Version>1.1.112</Version>
+    <ApplicationIcon>..\assets\dimensimatic-icon.ico</ApplicationIcon><Product>DimensiMatic Setup</Product><Title>DimensiMatic Setup</Title><Company>Dimensi Suara</Company>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="payload.7z" LogicalName="Dimensimatic.payload.7z" />

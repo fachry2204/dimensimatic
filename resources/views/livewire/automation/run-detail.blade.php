@@ -1,26 +1,33 @@
 <div wire:poll.10s>
     <x-automation-nav />
-    <main class="page-shell">
+    <main id="main-content" class="page-shell run-detail-page" tabindex="-1">
         <section class="page-heading">
-            <div><div class="eyebrow">Execution detail</div><h1 class="page-title">Automation Run</h1><p class="page-subtitle font-mono text-xs">{{ $run->id }}</p></div>
+            <div><div class="eyebrow">Execution detail</div><h1 class="page-title">Detail Proses Rilisan</h1><p class="page-subtitle font-mono text-xs">{{ $run->id }}</p></div>
             @php($runStatus = $run->status->value)
             <span class="badge {{ in_array($runStatus, ['completed','running']) ? 'badge--success' : (in_array($runStatus, ['failed','stopped']) ? 'badge--danger' : 'badge--warning') }}">{{ str_replace('_', ' ', $runStatus) }}</span>
         </section>
 
-        <section class="panel">
+        <div class="run-overview">
+            <div><small>Total rilisan</small><strong>{{ $jobs->count() }}</strong></div>
+            <div><small>Selesai</small><strong>{{ $jobs->filter(fn ($job) => $job->status->value === 'completed')->count() }}</strong></div>
+            <div><small>Dalam proses</small><strong>{{ $jobs->filter(fn ($job) => in_array($job->status->value, ['queued', 'running']))->count() }}</strong></div>
+            <div><small>Perlu perhatian</small><strong>{{ $jobs->filter(fn ($job) => in_array($job->status->value, ['failed', 'needs_attention', 'manual_auth_required']))->count() }}</strong></div>
+        </div>
+        <nav class="section-links" aria-label="Bagian detail proses"><a href="#run-jobs">Ringkasan</a><a href="#run-metadata">Metadata</a><a href="#run-log">Log Proses</a></nav>
+        <section id="run-jobs" class="panel">
             <header class="panel-header"><div><h2 class="panel-title">Release jobs</h2><p class="panel-copy">Checkpoint dan hasil setiap rilisan dalam automation run ini.</p></div><span class="badge badge--brand">Live · 10 detik</span></header>
             <div class="table-scroll"><table class="data-table"><thead><tr><th>Release</th><th>Judul</th><th>Checkpoint</th><th>Status</th><th>Draft</th><th>Error</th><th>Aksi</th></tr></thead><tbody>
             @forelse ($jobs as $job)
                 @php($jobStatus = $job->status->value)
-                <tr><td class="font-mono">{{ $job->soundfresh_release_id }}</td><td class="font-semibold text-slate-700">{{ $job->release_title ?? '—' }}</td><td><span class="badge">{{ \App\Support\SystemBranding::text(str_replace('_', ' ', $job->checkpoint->value)) }}</span></td><td><span class="badge {{ in_array($jobStatus, ['completed','processing']) ? 'badge--success' : (in_array($jobStatus, ['failed','needs_attention']) ? 'badge--danger' : 'badge--warning') }}">{{ str_replace('_', ' ', $jobStatus) }}</span></td><td>@if ($job->soundon_draft_url)<a href="{{ $job->soundon_draft_url }}" target="_blank" rel="noopener noreferrer">Buka draft ↗</a>@else — @endif</td><td class="max-w-xs text-xs text-red-600">{{ \App\Support\SystemBranding::text($job->error_code) }} {{ \App\Support\SystemBranding::text($job->error_message) }}</td><td>@if (in_array($jobStatus, ['failed','needs_attention']))<button type="button" wire:click="retry('{{ $job->id }}')" class="secondary-button">Retry</button>@endif</td></tr>
+                <tr><td class="font-mono">{{ $job->soundfresh_release_id }}</td><td class="font-semibold text-slate-700">{{ $job->release_title ?? '—' }}</td><td><span class="badge">{{ \App\Support\SystemBranding::text(str_replace('_', ' ', $job->checkpoint->value)) }}</span></td><td><span class="badge {{ in_array($jobStatus, ['completed','processing']) ? 'badge--success' : (in_array($jobStatus, ['failed','needs_attention']) ? 'badge--danger' : 'badge--warning') }}">{{ str_replace('_', ' ', $jobStatus) }}</span></td><td>@if ($job->soundon_draft_url)<a href="{{ $job->soundon_draft_url }}" target="_blank" rel="noopener noreferrer">Buka draft ↗</a>@else — @endif</td><td class="max-w-xs text-xs text-red-600">{{ \App\Support\SystemBranding::text(\App\Services\Automation\ReadableReleaseError::technicalDetails($job->error_code, $job->error_message)) }}</td><td>@if (in_array($jobStatus, ['failed','needs_attention']))<button type="button" wire:click="retry('{{ $job->id }}')" class="secondary-button">Retry</button>@endif</td></tr>
             @empty
                 <tr><td colspan="7" class="empty-state">Belum ada release job pada run ini.</td></tr>
             @endforelse
             </tbody></table></div>
         </section>
 
-        <section class="panel mt-6">
-            <header class="panel-header"><div><h2 class="panel-title">Metadata terintegrasi</h2><p class="panel-copy">Nilai hasil ekstraksi {{ $cmsName }} yang disiapkan untuk field SoundOn.</p></div></header>
+        <section id="run-metadata" class="panel mt-6">
+            <header class="panel-header"><div><h2 class="panel-title">Metadata terintegrasi</h2><p class="panel-copy">Nilai hasil ekstraksi {{ $cmsName }} yang disiapkan untuk field Aggregator.</p></div></header>
             <div class="space-y-4 p-5">
                 @forelse ($jobs->filter(fn ($item) => filled($item->metadata_snapshot_json)) as $metadataJob)
                     @php($metadata = $metadataJob->metadata_snapshot_json)
@@ -40,12 +47,12 @@
                         </div>
                     </details>
                 @empty
-                    <div class="empty-state">Metadata belum berhasil diekstrak. Jalankan atau retry job untuk memproses dan menyimpannya sebagai draft SoundOn.</div>
+                    <div class="empty-state">Metadata belum berhasil diekstrak. Jalankan atau retry job untuk memproses dan menyimpannya sebagai draft Aggregator.</div>
                 @endforelse
             </div>
         </section>
 
-        <section class="panel mt-6">
+        <section id="run-log" class="panel mt-6">
             <header class="panel-header"><div><h2 class="panel-title">Audit timeline</h2><p class="panel-copy">Jejak aktivitas terbaru untuk kebutuhan monitoring dan investigasi.</p></div></header>
             <div class="divide-y divide-slate-100 px-5">
                 @forelse ($events as $event)

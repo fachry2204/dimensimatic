@@ -74,11 +74,11 @@ class StatusRefreshLifecycleTest extends TestCase
         $second = $this->release($run, 'Sedang Dicari', ['soundon_release_status' => 'under_review', 'soundon_check_status' => 'checking', 'soundon_check_progress' => 20]);
         $this->queuedWork($id);
         $page->call('pollStatusUpdates')->assertSee('Hasil Terbaru')->assertSee('Sedang Dicari')
-            ->assertSee('Memeriksa SoundOn 1 / 2')->assertSee('Sedang diperiksa...')->assertSet('bulkCheckRequested', true);
+            ->assertSee('Memeriksa Aggregator 1 / 2')->assertSee('Sedang diperiksa...')->assertSet('bulkCheckRequested', true);
         $second->update(['soundon_check_status' => 'detected', 'soundon_release_status' => 'live']);
         $run->update(['status' => 'completed', 'finished_at' => now()]);
         $page->call('pollStatusUpdates')->assertSet('bulkCheckRequested', false)
-            ->assertSee('Pemeriksaan terbaru selesai: 2 / 2 rilisan')->assertSee('Live')->assertSee('Cek Status SoundOn');
+            ->assertSee('Pemeriksaan terbaru selesai: 2 / 2 rilisan')->assertSee('Live')->assertSee('Cek Status Aggregator');
         $this->assertSame('delivery', $first->fresh()->soundon_release_status);
     }
 

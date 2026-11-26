@@ -3,8 +3,8 @@
     <OutputType>WinExe</OutputType><TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
     <AssemblyName>Dimensimatic</AssemblyName><RootNamespace>Dimensimatic.Desktop</RootNamespace>
-    <ApplicationIcon>..\assets\dimensimatic-icon.ico</ApplicationIcon><Product>Dimensimatic</Product><Title>Dimensimatic</Title><Company>Dimensi Suara</Company>
-    <Version>1.1.110</Version><AssemblyVersion>1.1.110.0</AssemblyVersion><FileVersion>1.1.110.0</FileVersion><InformationalVersion>1.1.110</InformationalVersion>
+    <ApplicationIcon>..\assets\dimensimatic-icon.ico</ApplicationIcon><Product>DimensiMatic</Product><Title>DimensiMatic</Title><Company>Dimensi Suara</Company>
+    <Version>1.1.112</Version><AssemblyVersion>1.1.112.0</AssemblyVersion><FileVersion>1.1.112.0</FileVersion><InformationalVersion>1.1.112</InformationalVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3537.50" />

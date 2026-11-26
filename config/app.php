@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Dimensimatic'),
+    'name' => env('APP_NAME', 'DimensiMatic'),
 
     /*
     |--------------------------------------------------------------------------

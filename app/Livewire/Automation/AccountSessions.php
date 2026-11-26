@@ -70,7 +70,7 @@ final class AccountSessions extends Component
             try {
                 $this->emails[$account->platform->value] = (string) ($account->email_encrypted ?? '');
             } catch (DecryptException) {
-                $this->message = \App\Support\SystemBranding::text('Credential lama tidak dapat dibaca setelah pemulihan database. Masukkan ulang email dan password Dimensi Suara serta SoundOn, lalu simpan dan login kembali.');
+                $this->message = \App\Support\SystemBranding::text('Credential lama tidak dapat dibaca setelah pemulihan database. Masukkan ulang email dan password Dimensi Suara serta Aggregator, lalu simpan dan login kembali.');
             }
         }
         $this->refreshDownloadStats();

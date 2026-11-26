@@ -1,10 +1,16 @@
 <div wire:poll.2s="pollCollection">
     <x-automation-nav />
-    <main class="page-shell">
+    <main id="main-content" class="page-shell publish-page" tabindex="-1">
         <section class="page-heading">
-            <div><h1 class="page-title">Publish Rilis</h1><p class="page-subtitle">Ambil Under Review dari CMS, pilih satu atau semua. Draft SoundOn dicari berdasarkan judul; artis dicocokkan jika judul sama. Lalu Next sampai Submit. Setelah SoundOn berhasil, Upload Release dijalankan di {{ $cmsName }}.</p></div>
+            <div><h1 class="page-title">Publish Rilis</h1><p class="page-subtitle">Ambil Under Review dari CMS, pilih satu atau semua. Draft Aggregator dicari berdasarkan judul; artis dicocokkan jika judul sama. Lalu Next sampai Submit. Setelah Aggregator berhasil, Upload Release dijalankan di {{ $cmsName }}.</p></div>
             <button wire:click="startCollection" wire:loading.attr="disabled" @disabled($collectionId !== null) class="primary-button"><span wire:loading.remove wire:target="startCollection">Ambil Semua Under Review CMS</span><span wire:loading wire:target="startCollection">Mengambil draft...</span></button>
         </section>
+        <div class="workflow-strip" aria-label="Alur publish rilisan">
+            <div class="workflow-step"><b>1</b><span><strong>Ambil rilisan</strong><small>Under Review dari CMS</small></span></div>
+            <div class="workflow-step"><b>2</b><span><strong>Validasi draft</strong><small>Cocokkan judul dan artis</small></span></div>
+            <div class="workflow-step"><b>3</b><span><strong>Submit</strong><small>Kirim ke Aggregator</small></span></div>
+            <div class="workflow-step"><b>4</b><span><strong>Update CMS</strong><small>Konfirmasi Upload Release</small></span></div>
+        </div>
         <div wire:loading wire:target="startCollection" class="panel mb-5 p-4" role="status">Menghubungkan ke CMS, menyiapkan seluruh Under Review...</div>
         @if($collectionStatus !== 'idle')
             <section class="panel mb-5 p-4" role="status" aria-live="polite">
@@ -23,8 +29,8 @@
                 <span>{{ count($selectedIds) }} rilisan dipilih</span>
                 <button wire:click="publishSelected" wire:loading.attr="disabled" @disabled(count($selectedIds)===0) class="primary-button">Publish Rilis Terpilih</button>
             </div>
-            <div class="overflow-x-auto"><table class="data-table"><thead><tr>
-                <th><input type="checkbox" @checked(count($selectedIds)>0 && count($selectedIds)===$items->filter(fn($row)=>in_array($row->status,['draft','failed']) && $row->cms_release_url)->count()) wire:click="toggleAll" aria-label="Pilih semua draft siap publish"></th><th>Rilisan / Artis</th><th>SoundOn</th><th>{{ $cmsName }}</th><th>Proses</th>
+            <div class="overflow-x-auto"><table class="data-table" data-card-table><thead><tr>
+                <th><input type="checkbox" @checked(count($selectedIds)>0 && count($selectedIds)===$items->filter(fn($row)=>in_array($row->status,['draft','failed']) && $row->cms_release_url)->count()) wire:click="toggleAll" aria-label="Pilih semua draft siap publish"></th><th>Rilisan / Artis</th><th>Aggregator</th><th>{{ $cmsName }}</th><th>Proses</th>
             </tr></thead><tbody>
             @forelse($items as $item)
                 <tr wire:key="publish-{{ $item->id }}">
@@ -32,7 +38,7 @@
                     <td><strong>{{ $item->title }}</strong><p>{{ $item->artist }}</p></td>
                     <td><a href="{{ $item->draft_url }}" target="_blank" rel="noopener">{{ $item->soundon_published_at ? 'Publish berhasil' : 'Dicari saat publish' }} ↗</a></td>
                     <td>@if($item->cms_release_url)<a href="{{ $item->cms_release_url }}" target="_blank" rel="noopener">{{ $item->cms_uploaded_at ? 'Uploading' : 'Under Review' }} ↗</a>@else<span>Pasangan Under Review belum ditemukan / ambigu</span>@endif</td>
-                    <td>{{ ['draft'=>'Siap dipilih','queued'=>'Menunggu antrean','publishing'=>'Publish SoundOn berjalan','updating_cms'=>'Upload Release CMS berjalan','success'=>'Selesai','failed'=>'Gagal — pilih untuk mencoba ulang','unavailable'=>'Tidak lagi tersedia di draft','blocked'=>'Perlu pemeriksaan draft'][$item->status] ?? $item->status }}
+                    <td>{{ ['draft'=>'Siap dipilih','queued'=>'Menunggu antrean','publishing'=>'Publish Aggregator berjalan','updating_cms'=>'Upload Release CMS berjalan','success'=>'Selesai','failed'=>'Gagal — pilih untuk mencoba ulang','unavailable'=>'Tidak lagi tersedia di draft','blocked'=>'Perlu pemeriksaan draft'][$item->status] ?? $item->status }}
                     @php
                         $percent = $item->status === 'success' ? 100 : max(0, min(100, (int) $item->progress_percent));
                         $active = in_array($item->status, ['queued','publishing','updating_cms']);
@@ -44,12 +50,12 @@
                             <span>{{ \App\Support\SystemBranding::text($stage) }}</span>
                             <strong>{{ $percent }}%</strong>
                         </div>
-                        <div class="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Progres publish {{ $item->title }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $percent }}" aria-valuetext="{{ $percent }}% — {{ $stage }}">
+                        <div class="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Progres publish {{ $item->title }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $percent }}" aria-valuetext="{{ $percent }}% — {{ \App\Support\SystemBranding::text($stage) }}">
                             <div class="h-full rounded-full transition-all duration-500 {{ $barColor }} {{ $active ? 'animate-pulse' : '' }}" style="width: {{ $percent }}%"></div>
                         </div>
                     </div>
                     @if($item->progress_attempt)<p class="mt-1 text-xs text-slate-500">Worker: {{ $item->worker_version ? 'v'.$item->worker_version : 'belum tercatat pada percobaan ini' }}</p>@endif
-                    @if($item->error)<div class="max-w-96 whitespace-normal break-words text-red-600"><strong>Alasan gagal / perlu diperiksa:</strong><p>{{ \App\Support\SystemBranding::text($item->error) }}</p></div>@endif</td>
+                    @if($item->error)<details class="publish-error"><summary>Alasan gagal / perlu diperiksa:</summary><p>{{ \App\Support\SystemBranding::text($item->error) }}</p></details>@endif</td>
                 </tr>
             @empty<tr><td colspan="5">{{ !$showDrafts ? 'Tabel telah dikosongkan. Daftar baru akan tampil setelah pengambilan seluruh Under Review selesai.' : 'Tekan Ambil Semua Under Review CMS untuk memulai.' }}</td></tr>@endforelse
             </tbody></table></div>

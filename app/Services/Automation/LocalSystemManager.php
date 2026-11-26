@@ -5,16 +5,45 @@ declare(strict_types=1);
 namespace App\Services\Automation;
 
 use RuntimeException;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\Process\Process;
 
 final class LocalSystemManager
 {
+    public function startUpdateCheck(): void
+    {
+        if (app()->runningUnitTests() || PHP_OS_FAMILY !== 'Windows') return;
+        $this->startWindowsArtisanProcess(['dimensimatic:check-update'], storage_path('app/update-check.pid'), storage_path('logs/update-check.log'), storage_path('logs/update-check-error.log'));
+    }
+
+    /** A short-lived display snapshot; operational Start/Stop checks always use status(). */
+    public function displayStatus(): array
+    {
+        if (app()->environment('testing')) {
+            return $this->status();
+        }
+
+        return Cache::store('file')->remember($this->displayStatusKey(), 5, fn (): array => $this->status());
+    }
+
+    private function displayStatusKey(): string
+    {
+        return 'local-system-display:'.sha1(base_path().'|'.config('automation.local_server_url').'|'.config('automation.worker_url'));
+    }
+
     /** @return array{server: bool, worker: bool, release_workers: int, status_workers: int, cms_workers: int, queues_online: bool, worker_slots: int, browser_slots: int} */
     public function status(): array
     {
-        $releaseWorkers = $this->queueWorkerCount('release-automation');
-        $statusWorkers = $this->queueWorkerCount('status-checks');
-        $cmsWorkers = $this->queueWorkerCount('cms-verification');
+        // A single process inventory replaces three WMIC launches per refresh.
+        $processes = !app()->environment('testing') && PHP_OS_FAMILY === 'Windows'
+            ? $this->windowsOwnedProcesses('php.exe') : [];
+        $count = fn (string $queue): int => count(array_filter($processes,
+            fn (array $process): bool => str_contains($process['record'], 'queue:work')
+                && !str_contains($process['record'], '--queue-runner')
+                && preg_match('/--queue='.preg_quote($queue, '/').'(?:,|[\s"]|$)/', $process['record']) === 1));
+        $releaseWorkers = $count('release-automation');
+        $statusWorkers = $count('status-checks');
+        $cmsWorkers = $count('cms-verification');
 
         return [
             'server' => $this->serverIsOnline(),
@@ -31,6 +60,7 @@ final class LocalSystemManager
     /** @return array{server: bool, worker: bool, message: string} */
     public function start(): array
     {
+        Cache::store('file')->forget($this->displayStatusKey());
         if (app()->environment('testing')) {
             return [...$this->status(), 'message' => 'Worker tidak dinyalakan pada lingkungan pengujian.'];
         }
@@ -58,6 +88,7 @@ final class LocalSystemManager
     /** Stop only the local browser worker process; the web server stays online. */
     public function stop(): array
     {
+        Cache::store('file')->forget($this->displayStatusKey());
         if (app()->environment('testing')) {
             return [...$this->status(), 'message' => 'Worker tidak dihentikan pada lingkungan pengujian.'];
         }
@@ -94,6 +125,7 @@ final class LocalSystemManager
     /** Start the durable Laravel queue workers used by collection, upload, verification, and checks. */
     public function startQueueWorkers(): void
     {
+        Cache::store('file')->forget($this->displayStatusKey());
         if (app()->environment('testing') || PHP_OS_FAMILY !== 'Windows') {
             return;
         }
@@ -112,6 +144,7 @@ final class LocalSystemManager
     /** Stop every local queue process for the requested queues, including an older process without a PID file. */
     public function stopQueueWorkers(?array $queues = null): void
     {
+        Cache::store('file')->forget($this->displayStatusKey());
         if (app()->environment('testing') || PHP_OS_FAMILY !== 'Windows') {
             return;
         }

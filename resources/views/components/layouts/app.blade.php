@@ -7,7 +7,13 @@
     <title>{{ $systemName }} Automation</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 <x-system-identity /></head>
-<body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+<body class="app-workspace min-h-screen text-slate-900 antialiased">
+    <a class="skip-link" href="#main-content">Lewati navigasi</a>
     {{ $slot }}
+    @auth
+        @can('sessions.manage')
+            <livewire:automation.application-update-prompt />
+        @endcan
+    @endauth
 </body>
 </html>

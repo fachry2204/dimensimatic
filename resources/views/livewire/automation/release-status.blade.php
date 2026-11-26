@@ -1,12 +1,12 @@
 <div wire:poll.3s.keep-alive="pollStatusUpdates">
     <x-automation-nav />
 
-    <main class="page-shell">
+    <main id="main-content" class="page-shell release-status-page" tabindex="-1">
         <section class="page-heading">
             <div>
                 <div class="eyebrow">Release tracking</div>
                 <h1 class="page-title">Cek Status Rilis</h1>
-                <p class="page-subtitle">Pantau pemeriksaan setiap rilisan {{ $cmsName }} terhadap status terbaru di SoundOn.</p>
+                <p class="page-subtitle">Pantau pemeriksaan setiap rilisan {{ $cmsName }} terhadap status terbaru di Aggregator.</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <span class="badge badge--brand">Live · 3 detik</span>
@@ -16,7 +16,7 @@
                     <span wire:loading wire:target="downloadUnderReviewReport">Membuat Excel...</span>
                 </button>
                 <button type="button" wire:click="refreshSoundOnStatuses" wire:loading.attr="disabled" wire:target="refreshSoundOnStatuses" @disabled($bulkCheckRequested) class="primary-button">
-                    <span wire:loading.remove wire:target="refreshSoundOnStatuses">{{ $bulkCheckRequested ? $scanLabel : 'Cek Status SoundOn' }}</span>
+                    <span wire:loading.remove wire:target="refreshSoundOnStatuses">{{ $bulkCheckRequested ? $scanLabel : 'Cek Status Aggregator' }}</span>
                     <span wire:loading wire:target="refreshSoundOnStatuses">Mengosongkan tabel dan memulai pemeriksaan...</span>
                 </button>
             </div>
@@ -27,7 +27,7 @@
                 <p class="text-sm font-semibold text-indigo-700">{{ $scanLabel }}</p>
                 <p class="mt-1 text-xs text-indigo-600">Pemeriksaan dimulai {{ $scanRun->created_at?->diffForHumans() }}. {{ $scanFinished }} / {{ $scanTotal }} rilisan selesai. Tabel menampilkan pemeriksaan terbaru dan diperbarui setiap 3 detik.</p>
                 @if($scanTotal > 0)
-                    <progress class="mt-2 w-full" max="{{ $scanTotal }}" value="{{ $scanFinished }}" aria-label="Progres pemeriksaan SoundOn"></progress>
+                    <progress class="mt-2 w-full" max="{{ $scanTotal }}" value="{{ $scanFinished }}" aria-label="Progres pemeriksaan Aggregator"></progress>
                 @elseif($scanRun->status->value === 'queued' && $scanRun->created_at?->lt(now()->subSeconds(30)))
                     <p class="mt-2 text-xs text-amber-700">Antrean belum diambil worker. Periksa layanan antrean status-checks pada aplikasi.</p>
                 @else
@@ -55,14 +55,18 @@
                 </div>
             </header>
             
+            <details class="filter-disclosure" open wire:ignore.self data-mobile-disclosure>
+                <summary>Cari dan filter rilisan</summary>
             <div class="border-b border-slate-100 bg-slate-50/50 px-5 py-4">
                 <div class="release-status-filters">
                     <label class="release-filter release-filter--search"><span>Cari rilisan</span><input wire:model.live.debounce.400ms="search" type="search" placeholder="Judul, artis, ID {{ $cmsName }} atau draft"></label>
                     <label class="release-filter"><span>Status pemeriksaan</span><select wire:model.live="status"><option value="all">Semua status</option><option value="queued">Menunggu</option><option value="checking">Sedang diperiksa</option><option value="detected">Terdeteksi</option><option value="not_found">Tidak ditemukan</option><option value="failed">Gagal</option></select></label>
-                    <label class="release-filter"><span>Status SoundOn</span><select wire:model.live="soundOnStatus"><option value="new">Status Baru Diambil</option><option value="all">Semua</option><option value="under_review">Under Review</option><option value="delivery">Delivered</option><option value="approved">Approved</option><option value="not_approved">Not Approved</option><option value="live">Live</option><option value="pending">Belum terdeteksi</option></select></label>
+                    <label class="release-filter"><span>Status Aggregator</span><select wire:model.live="soundOnStatus"><option value="new">Status Baru Diambil</option><option value="all">Semua</option><option value="under_review">Under Review</option><option value="delivery">Delivered</option><option value="approved">Approved</option><option value="not_approved">Not Approved</option><option value="live">Live</option><option value="pending">Belum terdeteksi</option></select></label>
                     <button type="button" wire:click="resetFilters" class="secondary-button" style="height: 40px; margin-bottom: 2px;">Reset</button>
                 </div>
             </div>
+
+            </details>
 
             @if ($syncMessage)<div class="mx-5 mt-4 rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-600">{{ $syncMessage }} @if (str_contains($syncMessage, 'Pengaturan Platform'))<a href="{{ route('automation.sessions') }}" class="font-semibold underline">Buka Pengaturan Platform</a>@endif</div>@endif
 
@@ -100,8 +104,8 @@
 
             <div wire:loading wire:target="refreshSoundOnStatuses" class="empty-state" role="status">Mengosongkan tabel sebelumnya dan menyiapkan pemeriksaan terbaru...</div>
             <div class="table-scroll" wire:loading.remove wire:target="refreshSoundOnStatuses">
-                <table class="data-table release-status-table">
-                    <thead><tr><th><input type="checkbox" wire:click="toggleAllVisible({{ Js::from($selectableJobIds) }})" @checked(count($selectableJobIds) > 0 && count(array_intersect($selectableJobIds, $selectedJobIds)) === count($selectableJobIds)) aria-label="Pilih semua rilisan yang siap diverifikasi"></th><th>Rilisan</th><th>{{ $cmsName }}</th><th>SoundOn</th><th>UPC</th><th>ISRC</th><th>Status pemeriksaan</th><th>Aksi</th></tr></thead>
+                <table class="data-table release-status-table" data-card-table>
+                    <thead><tr><th><input type="checkbox" wire:click="toggleAllVisible({{ Js::from($selectableJobIds) }})" @checked(count($selectableJobIds) > 0 && count(array_intersect($selectableJobIds, $selectedJobIds)) === count($selectableJobIds)) aria-label="Pilih semua rilisan yang siap diverifikasi"></th><th>Rilisan</th><th>{{ $cmsName }}</th><th>Aggregator</th><th>UPC</th><th>ISRC</th><th>Status pemeriksaan</th><th>Aksi</th></tr></thead>
                     <tbody>
                     @forelse ($jobs as $job)
                         @php
@@ -135,7 +139,9 @@
                         <tr wire:key="release-status-{{ $job->id }}">
                             <td><input type="checkbox" wire:model.live="selectedJobIds" value="{{ $job->id }}" @disabled(!$canVerify) aria-label="Pilih {{ $title }}"></td>
                             <td><div class="min-w-52"><strong class="text-slate-800">{{ $title }}</strong><p class="mt-1 text-[11px] text-slate-400">{{ $job->artist_name ?: 'Artis tidak tersedia' }}</p></div></td>
-                            @php($soundfreshStatusLabels = ['pending' => 'Pending', 'revision' => 'Revision', 'under_review' => 'Under Review', 'uploading' => 'Uploading', 'rejected' => 'Rejected', 'published' => 'Published', 'draft' => 'Draft', 'verified' => 'Verified'])
+                            @php
+                                $soundfreshStatusLabels = ['pending' => 'Pending', 'revision' => 'Revision', 'under_review' => 'Under Review', 'uploading' => 'Uploading', 'rejected' => 'Rejected', 'published' => 'Published', 'draft' => 'Draft', 'verified' => 'Verified'];
+                            @endphp
                             <td>
                                 <a href="{{ $job->soundfresh_release_url }}" target="_blank" rel="noopener noreferrer" class="badge badge--success">ID {{ $job->soundfresh_release_id }} ↗</a>
                                 <p class="mt-1 text-[11px] text-slate-400">Tab: {{ $soundfreshStatusLabels[$job->soundfresh_workflow_status] ?? ucfirst(str_replace('_', ' ', $job->soundfresh_workflow_status ?? 'belum diketahui')) }}</p>
@@ -152,11 +158,8 @@
                                     @elseif($releaseDate)
                                         <p class="mt-1 text-[11px] font-semibold text-emerald-600">Rilis hari ini</p>
                                     @endif
-                                    @if($soundOnStatus === 'not_approved')
-                                        <p class="mt-2 max-w-64 text-[11px] font-medium text-red-600" title="{{ $job->soundon_rejection_reason }}">Alasan: {{ $job->soundon_rejection_reason ?: 'Belum terbaca; cek status kembali.' }}</p>
-                                    @endif
                                 @else
-                                    <span class="badge badge--warning">Belum terdeteksi</span><p class="mt-1 text-[11px] text-slate-400">{{ $checkStatus === 'checking' ? 'Pemeriksaan terbaru sedang berjalan' : ($checkStatus === 'queued' ? 'Menunggu giliran pemeriksaan terbaru' : ($job->error_code ?: 'Menunggu pemeriksaan SoundOn')) }}</p>
+                                    <span class="badge badge--warning">Belum terdeteksi</span><p class="mt-1 text-[11px] text-slate-400">{{ $checkStatus === 'checking' ? 'Pemeriksaan terbaru sedang berjalan' : ($checkStatus === 'queued' ? 'Menunggu giliran pemeriksaan terbaru' : (\App\Services\Automation\ReadableReleaseError::displayCode($job->error_code, $job->error_message) ?: 'Menunggu pemeriksaan Aggregator')) }}</p>
                                     @if($job->soundon_draft_id)<p class="mt-1 text-[11px] text-slate-400">ID {{ $job->soundon_draft_id }}</p>@endif
                                 @endif
                             </td>
@@ -168,9 +171,7 @@
                                     <div class="mt-2 h-2 w-40 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Progress pemeriksaan {{ $title }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $job->soundon_check_progress }}">
                                         <div class="h-full rounded-full bg-indigo-500 transition-all duration-500 {{ $checkStatus === 'checking' ? 'animate-pulse' : '' }}" style="width: {{ max(5, (int) $job->soundon_check_progress) }}%"></div>
                                     </div>
-                                    <p class="mt-1 text-[11px] text-slate-400">{{ $checkStatus === 'checking' ? 'Mencari '.$title.' di SoundOn' : 'Menunggu giliran pemeriksaan' }}</p>
-                                @elseif($job->soundon_check_error)
-                                    <p class="mt-1 max-w-64 truncate text-[11px] text-red-500" title="{{ $job->soundon_check_error }}">{{ $job->soundon_check_error }}</p>
+                                    <p class="mt-1 text-[11px] text-slate-400">{{ $checkStatus === 'checking' ? 'Mencari '.$title.' di Aggregator' : 'Menunggu giliran pemeriksaan' }}</p>
                                 @endif
                                 @if($verifyStatus === 'success')
                                     <p class="mt-2 text-xs text-emerald-700">CMS: Verify Release berhasil</p>
@@ -182,7 +183,6 @@
                                     <p class="mt-2 text-xs text-red-600">CMS: Reject Release berhasil</p>
                                 @elseif($verifyStatus === 'failed')
                                     <p class="mt-2 text-xs text-red-600">CMS: pengiriman gagal</p>
-                                    <p class="mt-1 max-w-64 whitespace-normal break-words text-xs text-red-600">{{ \App\Support\SystemBranding::text($job->soundfresh_verify_error) }}</p>
                                 @elseif($canVerify)
                                     <p class="mt-2 text-xs text-slate-600">CMS: menunggu pengiriman otomatis</p>
                                 @endif
@@ -191,7 +191,7 @@
                             <td>
                                 <div class="release-status-actions">
                                     <button type="button" wire:click="checkSoundOnStatus('{{ $job->id }}')" wire:loading.attr="disabled" wire:target="checkSoundOnStatus('{{ $job->id }}')" class="secondary-button release-status-action release-status-action--check" @disabled(in_array($checkStatus, ['queued', 'checking'], true))>
-                                        <span wire:loading.remove wire:target="checkSoundOnStatus('{{ $job->id }}')">{{ $checkStatus === 'checking' ? 'Sedang diperiksa...' : ($checkStatus === 'queued' ? 'Menunggu pemeriksaan...' : 'Cek Status SoundOn') }}</span>
+                                        <span wire:loading.remove wire:target="checkSoundOnStatus('{{ $job->id }}')">{{ $checkStatus === 'checking' ? 'Sedang diperiksa...' : ($checkStatus === 'queued' ? 'Menunggu pemeriksaan...' : 'Cek Status Aggregator') }}</span>
                                         <span wire:loading wire:target="checkSoundOnStatus('{{ $job->id }}')">Mengantrekan...</span>
                                     </button>
                                     @if($soundOnStatus === 'not_approved' && $verifyStatus === 'rejected')
@@ -232,6 +232,31 @@
                                 </div>
                             </td>
                         </tr>
+                        @php
+                            $warnings = [];
+                            if ($soundOnStatus === 'not_approved') {
+                                $warnings['rejection'] = ['reason' => $job->soundon_rejection_reason ?: 'Alasan penolakan belum terbaca; cek status kembali.', 'action' => '', 'technical' => 'Status Aggregator: Not Approved. '.($job->soundon_rejection_reason ?: '')];
+                            }
+                            if (!in_array($checkStatus, ['queued', 'checking'], true) && filled($job->soundon_check_error)) {
+                                $readable = \App\Services\Automation\ReadableReleaseError::explain(null, $job->soundon_check_error);
+                                $warnings['check'] = ['reason' => $readable['reason'], 'action' => $readable['action'], 'technical' => $job->soundon_check_error];
+                            }
+                            if ($verifyStatus === 'failed' && filled($job->soundfresh_verify_error)) {
+                                $readable = \App\Services\Automation\ReadableReleaseError::explain(null, $job->soundfresh_verify_error);
+                                $warnings['verify'] = ['reason' => $readable['reason'], 'action' => $readable['action'], 'technical' => $job->soundfresh_verify_error];
+                            }
+                        @endphp
+                        @if($warnings)
+                        <tr wire:key="release-status-warning-{{ $job->id }}" class="release-error-row">
+                            <td colspan="8">
+                                <div class="release-warning-list">
+                                    @foreach($warnings as $warningType => $warning)
+                                        <x-release-warning :reason="$warning['reason']" :action="$warning['action']" :technical="$warning['technical']" :detail-key="'release-status-detail-'.$warningType.'-'.$job->id" />
+                                    @endforeach
+                                </div>
+                            </td>
+                        </tr>
+                        @endif
                     @empty
                         <tr><td colspan="8" class="empty-state">Tidak ada rilisan yang cocok dengan pencarian atau filter.</td></tr>
                     @endforelse

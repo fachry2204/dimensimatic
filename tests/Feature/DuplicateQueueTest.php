@@ -79,7 +79,7 @@ class DuplicateQueueTest extends TestCase
             ->assertSee('Tetap Upload')
             ->call('forceDuplicateUpload', $release->id)
             ->assertSet('operationError', null)
-            ->assertSee('Rilisan Duplikat diantrikan untuk tetap di-upload ke SoundOn.');
+            ->assertSee('Rilisan Duplikat diantrikan untuk tetap di-upload ke Aggregator.');
 
         $release->refresh();
         $this->assertSame('queued', $release->status->value);

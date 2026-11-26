@@ -21,7 +21,7 @@ internal static class Program
         using var instance = new Mutex(true, @"Local\Dimensimatic.Desktop.Singleton", out var isFirstInstance);
         if (!isFirstInstance)
         {
-            MessageBox.Show("Dimensimatic sudah berjalan. Tutup jendela yang aktif sebelum membukanya kembali.", "Dimensimatic", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("DimensiMatic sudah berjalan. Tutup jendela yang aktif sebelum membukanya kembali.", "DimensiMatic", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
         Application.Run(new MainWindow(root));
@@ -36,11 +36,11 @@ internal static class Program
     private sealed class MainWindow : Form
     {
         private readonly string root;
-        private readonly Label status = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = "Menjalankan Dimensimatic...", Font = new Font("Segoe UI", 12) };
+        private readonly Label status = new() { Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleCenter, Text = "Menjalankan DimensiMatic...", Font = new Font("Segoe UI", 12) };
         private readonly WebView2 view = new() { Dock = DockStyle.Fill, Visible = false };
         private readonly System.Windows.Forms.Timer serviceMonitor = new() { Interval = 5000 };
         private readonly Dictionary<string, Process> ownedServices = new(StringComparer.OrdinalIgnoreCase);
-        private string systemName = "Dimensimatic";
+        private string systemName = "DimensiMatic";
         private Icon? defaultWindowIcon;
         private string automationKey = "";
         private string browserExecutable = "";
@@ -50,7 +50,7 @@ internal static class Program
 
         public MainWindow(string root)
         {
-            this.root = root; Text = "Dimensimatic v1.1.110"; Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); Width = 1440; Height = 900; MinimumSize = new Size(1000, 680); StartPosition = FormStartPosition.CenterScreen;
+            this.root = root; Text = "DimensiMatic v1.1.112"; Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); Width = 1440; Height = 900; MinimumSize = new Size(1000, 680); StartPosition = FormStartPosition.CenterScreen;
             defaultWindowIcon = Icon is null ? null : (Icon)Icon.Clone();
             Controls.Add(view); Controls.Add(status); Shown += async (_, _) => await StartAsync();
             serviceMonitor.Tick += async (_, _) => await RecoverServicesAsync();
@@ -61,11 +61,11 @@ internal static class Program
         {
             try
             {
-                if (!Required(root)) throw new InvalidOperationException("Instalasi Dimensimatic tidak lengkap. Jalankan ulang installer Dimensimatic Setup.");
+                if (!Required(root)) throw new InvalidOperationException("Instalasi DimensiMatic tidak lengkap. Jalankan ulang installer DimensiMatic Setup.");
                 Directory.CreateDirectory(Path.Combine(root, "storage", "logs"));
                 automationKey = Env(Path.Combine(root, "automation-worker", ".env"), "AUTOMATION_HMAC_KEY");
                 browserExecutable = FindBrowser();
-                if (string.IsNullOrWhiteSpace(browserExecutable)) throw new InvalidOperationException("Google Chrome atau Microsoft Edge tidak ditemukan. Instal salah satunya lalu buka kembali Dimensimatic.");
+                if (string.IsNullOrWhiteSpace(browserExecutable)) throw new InvalidOperationException("Google Chrome atau Microsoft Edge tidak ditemukan. Instal salah satunya lalu buka kembali DimensiMatic.");
                 if (string.IsNullOrWhiteSpace(automationKey)) automationKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Env(Path.Combine(root, ".env"), "APP_KEY") + "|dimensimatic-automation-hmac"))).ToLowerInvariant();
                 status.Text = "Membersihkan service lama...";
                 StopOwnedServices();
@@ -100,7 +100,7 @@ internal static class Program
                     }
                     catch (Exception error)
                     {
-                        MessageBox.Show("Installer update gagal dijalankan: " + error.Message, "Dimensimatic", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("Installer update gagal dijalankan: " + error.Message, "DimensiMatic", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 };
                 view.CoreWebView2.NavigationStarting += (_, e) =>
@@ -122,9 +122,9 @@ internal static class Program
             }
             catch (Exception e)
             {
-                status.Text = "Dimensimatic gagal dijalankan.\n\n" + e.Message;
+                status.Text = "DimensiMatic gagal dijalankan.\n\n" + e.Message;
                 File.WriteAllText(Path.Combine(root, "storage", "logs", "launcher-error.log"), e.ToString());
-                MessageBox.Show(e.Message, "Dimensimatic", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(e.Message, "DimensiMatic", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -139,7 +139,7 @@ internal static class Program
                 if (!string.IsNullOrEmpty(name) && name.Length <= 80)
                 {
                     systemName = name;
-                    Text = systemName + " v1.1.110";
+                    Text = systemName + " v1.1.112";
                 }
             }
             if (!branding.TryGetProperty("favicon", out var faviconValue)) return;
@@ -191,17 +191,17 @@ internal static class Program
                 RedirectStandardError = true,
             };
             info.Environment["AUTOMATION_HMAC_KEY"] = automationKey;
-            using var process = Process.Start(info) ?? throw new InvalidOperationException("Pemulihan antrean Dimensimatic gagal dimulai.");
+            using var process = Process.Start(info) ?? throw new InvalidOperationException("Pemulihan antrean DimensiMatic gagal dimulai.");
             process.WaitForExit(30_000);
             if (!process.HasExited)
             {
                 process.Kill(true);
-                throw new InvalidOperationException("Pemulihan antrean Dimensimatic melewati batas waktu.");
+                throw new InvalidOperationException("Pemulihan antrean DimensiMatic melewati batas waktu.");
             }
             if (process.ExitCode != 0)
             {
                 var error = process.StandardError.ReadToEnd();
-                throw new InvalidOperationException("Pemulihan antrean Dimensimatic gagal. " + error);
+                throw new InvalidOperationException("Pemulihan antrean DimensiMatic gagal. " + error);
             }
         }
 
@@ -496,10 +496,10 @@ internal static class Program
             request.Headers.Add("X-Automation-Nonce", nonce);
             request.Headers.Add("X-Automation-Signature", signature);
             using var response = await client.SendAsync(request);
-            if (!response.IsSuccessStatusCode) throw new InvalidOperationException("Worker tidak sesuai atau belum diperbarui. Pasang ulang Dimensimatic v1.1.110 lalu buka kembali.");
+            if (!response.IsSuccessStatusCode) throw new InvalidOperationException("Worker tidak sesuai atau belum diperbarui. Pasang ulang DimensiMatic v1.1.112 lalu buka kembali.");
             using var document = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            if (document.RootElement.GetProperty("data").GetProperty("version").GetString() != "1.1.110")
-                throw new InvalidOperationException("Versi worker berbeda dari aplikasi v1.1.110. Tutup aplikasi dan pasang ulang pembaruan.");
+            if (document.RootElement.GetProperty("data").GetProperty("version").GetString() != "1.1.112")
+                throw new InvalidOperationException("Versi worker berbeda dari aplikasi v1.1.112. Tutup aplikasi dan pasang ulang pembaruan.");
         }
 
         private static async Task WaitPort(int port) { for (var i = 0; i < 90; i++) { if (PortOpen(port)) return; await Task.Delay(500); } throw new InvalidOperationException($"Service port {port} tidak aktif."); }

@@ -274,7 +274,7 @@ final class PublishReleasesTest extends TestCase
         app()->call([new PublishSoundOnRelease($item->id), 'handle']);
         $this->assertSame($reason, $item->fresh()->error);
         $this->assertNull($item->fresh()->soundon_published_at);
-        Livewire::test(SoundOnReviews::class)->assertSee('Alasan gagal / perlu diperiksa:')->assertSee($reason);
+        Livewire::test(SoundOnReviews::class)->assertSee('Alasan gagal / perlu diperiksa:')->assertSee(\App\Support\SystemBranding::text($reason));
         Http::assertSentCount(2);
     }
 
@@ -388,7 +388,7 @@ final class PublishReleasesTest extends TestCase
 
     public function test_legacy_cms_names_and_error_codes_use_current_branding(): void
     {
-        $this->assertSame('ke Dimensi Suara CMS_UI_CHANGED', \App\Support\SystemBranding::text('ke Soundfresh SOUNDFRESH_UI_CHANGED'));
+        $this->assertSame('ke DimensiMatic CMS_UI_CHANGED', \App\Support\SystemBranding::text('ke Soundfresh SOUNDFRESH_UI_CHANGED'));
         \App\Models\AutomationSetting::current()->update(['system_name' => 'Sistem Saya']);
         \App\Support\SystemBranding::refresh();
         $this->assertSame('ke Sistem Saya', \App\Support\SystemBranding::text('ke Soundfresh'));

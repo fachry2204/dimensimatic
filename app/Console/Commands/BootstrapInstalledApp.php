@@ -12,11 +12,11 @@ class BootstrapInstalledApp extends Command
 
     public function handle(): int
     {
-        $user = User::updateOrCreate(['username' => 'admin'], [
+        $user = User::firstOrCreate(['username' => 'admin'], [
             'name' => 'Administrator', 'email' => 'admin@dimensimatic.local',
             'password' => 'admin', 'is_active' => true,
         ]);
-        $user->assignRole('Admin');
+        if ($user->wasRecentlyCreated) $user->assignRole('Admin');
         $this->info('Local administrator is ready.');
 
         return self::SUCCESS;

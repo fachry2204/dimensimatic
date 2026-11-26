@@ -163,7 +163,7 @@ final class SoundOnReviews extends Component
         Cache::forever('draft-table-snapshot:'.auth()->id(), array_values(array_filter($ids)));
         $this->showDrafts = true;
         Cache::forget('draft-table-hidden:'.auth()->id());
-        $this->message = count($releases).' rilisan Under Review CMS berhasil diambil. Pilih rilisan untuk mencari draft SoundOn dan publish.';
+        $this->message = count($releases).' rilisan Under Review CMS berhasil diambil. Pilih rilisan untuk mencari draft Aggregator dan publish.';
     }
 
     public function toggleAll(): void
@@ -199,7 +199,7 @@ final class SoundOnReviews extends Component
             }, 3);
         }
         $this->selectedIds = [];
-        $this->message = $count.' rilisan diantrikan. Setelah SoundOn berhasil, status CMS diubah melalui Upload Release.';
+        $this->message = $count.' rilisan diantrikan. Setelah Aggregator berhasil, status CMS diubah melalui Upload Release.';
     }
 
     private function pollPublishProgress(PlaywrightClient $worker): void

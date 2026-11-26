@@ -22,7 +22,6 @@ final class ApplicationUpdateTest extends TestCase
         config(['automation.update_repository' => 'fachry2204/dimensimatic']);
         Http::fake(['*' => Http::response(['message' => 'Not Found'], 404)]);
         Livewire::test(ApplicationUpdate::class)
-            ->set('latestVersion', '9.9.9')->set('releaseUrl', 'https://example.com/stale')
             ->call('checkForUpdate')->assertSet('updateAvailable', false)
             ->assertSet('latestVersion', null)->assertSet('releaseUrl', null)
             ->assertSee('HTTP 404')->assertSee('Repository mungkin privat');
@@ -61,7 +60,7 @@ final class ApplicationUpdateTest extends TestCase
         Http::fake();
         Livewire::test(ApplicationUpdate::class)->call('checkForUpdate')
             ->assertSet('updateAvailable', false)
-            ->assertSee('Repository update Dimensimatic belum dikonfigurasi');
+            ->assertSee('Repository update DimensiMatic belum dikonfigurasi');
         Http::assertNothingSent();
     }
 
@@ -102,13 +101,14 @@ final class ApplicationUpdateTest extends TestCase
             'https://github.com/fachry2204/dimensimatic/releases/download/v1.1.41/Dimensimatic-Setup-v1.1.41.exe' => Http::response('installer-binary'),
         ]);
 
+        $this->mock(\App\Services\Automation\UpdateBackup::class, fn ($mock) => $mock->shouldReceive('capture')->once()->andReturn('test-backup'));
         Livewire::test(ApplicationUpdate::class)
             ->assertSee('Update Aplikasi')
             ->call('checkForUpdate')
             ->assertSet('latestVersion', '1.1.41')
             ->assertSet('updateAvailable', true)
             ->assertSee('Update tersedia: v1.1.41')
-            ->call('downloadAndInstall')
+            ->call('downloadAndInstall', true)
             ->assertSet('message', 'Installer update v1.1.41 berhasil didownload. Jalankan file installer untuk menyelesaikan update.');
 
         $this->assertFileExists(storage_path('app/updates/Dimensimatic-Setup-v1.1.41.exe'));
@@ -124,8 +124,8 @@ final class ApplicationUpdateTest extends TestCase
         config(['automation.app_version' => '1.1.57']);
 
         Livewire::test(ApplicationUpdate::class)
-            ->assertSet('currentVersion', '1.1.110')
-            ->assertSee('v1.1.110');
+            ->assertSet('currentVersion', '1.1.112')
+            ->assertSee('v1.1.112');
     }
 
     public function test_installer_updates_version_without_rotating_existing_credentials(): void

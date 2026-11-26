@@ -291,7 +291,7 @@ class StartAutomationRunTest extends TestCase
         $job->refresh();
 
         $this->assertSame('needs_attention', $job->status->value);
-        $this->assertStringContainsString('Dimensimatic tab under review (ID 200)', $job->error_message);
+        $this->assertStringContainsString('DimensiMatic tab under review (ID 200)', $job->error_message);
         $this->assertStringContainsString('SoundOn All releases (status live)', $job->error_message);
         $this->assertStringContainsString('SoundOn Drafts', $job->error_message);
     }

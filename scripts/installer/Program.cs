@@ -34,9 +34,9 @@ internal static class Program
 
     private sealed class InstallerWindow : Form
     {
-        private readonly Label status = new() { Dock = DockStyle.Top, Height = 70, TextAlign = ContentAlignment.MiddleCenter, Text = "Dimensimatic Setup v1.1.110", Font = new Font("Segoe UI", 14, FontStyle.Bold) };
+        private readonly Label status = new() { Dock = DockStyle.Top, Height = 70, TextAlign = ContentAlignment.MiddleCenter, Text = "DimensiMatic Setup v1.1.112", Font = new Font("Segoe UI", 14, FontStyle.Bold) };
         private readonly ProgressBar progress = new() { Dock = DockStyle.Top, Height = 24, Style = ProgressBarStyle.Marquee };
-        private readonly Button install = new() { Dock = DockStyle.Top, Height = 46, Text = "Install Dimensimatic" };
+        private readonly Button install = new() { Dock = DockStyle.Top, Height = 46, Text = "Install DimensiMatic" };
         private readonly Label note = new() { Dock = DockStyle.Fill, Padding = new Padding(18), TextAlign = ContentAlignment.TopLeft, Text = "Aplikasi akan dipasang untuk pengguna Windows saat ini.\n\nLokasi: %LOCALAPPDATA%\\Programs\\Dimensimatic\n\nSetelah instalasi, login awal: admin / admin. Segera ganti password setelah masuk." };
         private readonly bool silentUpdate;
         private static readonly string InstallerLogPath = Path.Combine(
@@ -47,13 +47,13 @@ internal static class Program
         public InstallerWindow(bool silentUpdate = false)
         {
             this.silentUpdate = silentUpdate;
-            Text = "Dimensimatic Setup"; Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); Width = 540; Height = 330; StartPosition = FormStartPosition.CenterScreen; FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
+            Text = "DimensiMatic Setup"; Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); Width = 540; Height = 330; StartPosition = FormStartPosition.CenterScreen; FormBorderStyle = FormBorderStyle.FixedDialog; MaximizeBox = false;
             Controls.Add(note); Controls.Add(install); Controls.Add(progress); Controls.Add(status); progress.Visible = false;
             install.Click += async (_, _) => await InstallAsync();
             if (silentUpdate)
             {
                 install.Visible = false;
-                note.Text = "Update Dimensimatic sedang dipasang otomatis. Data aplikasi dan credential tetap dipertahankan.";
+                note.Text = "Update DimensiMatic sedang dipasang otomatis. Data aplikasi dan credential tetap dipertahankan.";
                 Shown += async (_, _) => await InstallAsync();
             }
         }
@@ -68,7 +68,7 @@ internal static class Program
             {
                 Log("Instalasi dimulai. Mode otomatis: " + silentUpdate);
                 Directory.CreateDirectory(temp); Directory.CreateDirectory(target);
-                status.Text = "Menghentikan Dimensimatic yang sedang berjalan...";
+                status.Text = "Menghentikan DimensiMatic yang sedang berjalan...";
                 Log(status.Text);
                 await StopRunningApplication(target);
                 DeleteOldWorkerFiles(target);
@@ -87,7 +87,7 @@ internal static class Program
                 CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", "Dimensimatic.lnk"), Path.Combine(target, "Dimensimatic.exe"), target);
                 status.Text = silentUpdate ? "Update selesai." : "Instalasi selesai."; progress.Visible = false;
                 Log(status.Text);
-                if (silentUpdate || MessageBox.Show("Dimensimatic berhasil diinstal. Buka sekarang?", "Selesai", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                if (silentUpdate || MessageBox.Show("DimensiMatic berhasil diinstal. Buka sekarang?", "Selesai", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
                     Process.Start(new ProcessStartInfo(Path.Combine(target, "Dimensimatic.exe")) { WorkingDirectory = target, UseShellExecute = true });
                 ScheduleSelfDelete();
                 Close();
@@ -98,7 +98,7 @@ internal static class Program
                 progress.Visible = false;
                 install.Enabled = true;
                 status.Text = "Instalasi gagal";
-                MessageBox.Show(error.Message + "\n\nLog: " + InstallerLogPath, "Dimensimatic Setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(error.Message + "\n\nLog: " + InstallerLogPath, "DimensiMatic Setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             finally { try { Directory.Delete(temp, true); } catch { } }
         }
@@ -163,7 +163,7 @@ internal static class Program
                 Path.Combine(target, "runtime", "php", "php.exe"),
             }.Where(IsFileLocked).ToArray();
             if (locked.Length > 0)
-                throw new InvalidOperationException("Dimensimatic masih menggunakan file runtime. Tutup aplikasi melalui Task Manager lalu jalankan installer kembali. File terkunci: " + string.Join(", ", locked.Select(Path.GetFileName)));
+                throw new InvalidOperationException("DimensiMatic masih menggunakan file runtime. Tutup aplikasi melalui Task Manager lalu jalankan installer kembali. File terkunci: " + string.Join(", ", locked.Select(Path.GetFileName)));
         }
 
         private static async Task StopOwnedRuntimeProcesses(string target)
@@ -225,7 +225,7 @@ internal static class Program
                 await Task.Delay(500);
             }
 
-            throw new InvalidOperationException("Tidak dapat menghentikan runtime milik Dimensimatic secara otomatis. Proses yang masih terdeteksi: " + string.Join(", ", lastFound) + ". Tutup proses tersebut lalu jalankan installer kembali.");
+            throw new InvalidOperationException("Tidak dapat menghentikan runtime milik DimensiMatic secara otomatis. Proses yang masih terdeteksi: " + string.Join(", ", lastFound) + ". Tutup proses tersebut lalu jalankan installer kembali.");
         }
 
         private static void DeleteOldWorkerFiles(string target)
@@ -485,6 +485,6 @@ internal static class Program
             return process.ExitCode == 0;
         }
         private static async Task Run(string exe, string args, string cwd) { var p = Process.Start(new ProcessStartInfo(exe, args) { WorkingDirectory = cwd, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true }) ?? throw new InvalidOperationException("Proses instalasi gagal dimulai."); var stdout = p.StandardOutput.ReadToEndAsync(); var stderr = p.StandardError.ReadToEndAsync(); await p.WaitForExitAsync(); if (p.ExitCode != 0) throw new InvalidOperationException((await stderr) + Environment.NewLine + (await stdout)); }
-        private static void CreateShortcut(string path, string target, string cwd) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); var shellType = Type.GetTypeFromProgID("WScript.Shell")!; dynamic shell = Activator.CreateInstance(shellType)!; dynamic shortcut = shell.CreateShortcut(path); shortcut.TargetPath = target; shortcut.WorkingDirectory = cwd; var iconPath = Path.Combine(cwd, "public", "favicon.ico"); shortcut.IconLocation = File.Exists(iconPath) ? iconPath : target + ",0"; shortcut.Description = "Dimensimatic Release Automation"; shortcut.Save(); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
+        private static void CreateShortcut(string path, string target, string cwd) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); var shellType = Type.GetTypeFromProgID("WScript.Shell")!; dynamic shell = Activator.CreateInstance(shellType)!; dynamic shortcut = shell.CreateShortcut(path); shortcut.TargetPath = target; shortcut.WorkingDirectory = cwd; var iconPath = Path.Combine(cwd, "public", "favicon.ico"); shortcut.IconLocation = File.Exists(iconPath) ? iconPath : target + ",0"; shortcut.Description = "DimensiMatic Release Automation"; shortcut.Save(); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
     }
 }

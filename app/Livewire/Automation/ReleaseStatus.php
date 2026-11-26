@@ -158,7 +158,7 @@ final class ReleaseStatus extends Component
             $sessions->assertReadable(Platform::Soundfresh);
             $sessions->assertReadable(Platform::SoundOn);
         } catch (CredentialsNotConfiguredException $error) {
-            $label = $error->platform === Platform::Soundfresh ? \App\Support\SystemBranding::text('Dimensi Suara') : 'SoundOn';
+            $label = $error->platform === Platform::Soundfresh ? \App\Support\SystemBranding::text('Dimensi Suara') : 'Aggregator';
             $this->syncMessage = $error->keyMismatch
                 ? "Credential {$label} dari database lama tidak dapat dibaca. Masukkan ulang email dan password di Pengaturan Platform sebelum cek status."
                 : "Credential {$label} belum lengkap. Isi di Pengaturan Platform sebelum cek status.";
@@ -176,7 +176,7 @@ final class ReleaseStatus extends Component
         if ($alreadyRunning) {
             $this->showStatusRun($alreadyRunning);
             $this->bulkCheckRequested = true;
-            $this->syncMessage = 'Pemeriksaan SoundOn masih berjalan. Tunggu sampai selesai agar antrean tidak terduplikasi.';
+            $this->syncMessage = 'Pemeriksaan Aggregator masih berjalan. Tunggu sampai selesai agar antrean tidak terduplikasi.';
 
             return;
         }
@@ -208,7 +208,7 @@ final class ReleaseStatus extends Component
         $this->showStatusRun($run);
         QueueSoundOnStatusChecks::dispatch(auth()->id(), 'uploading', $run->id);
         $this->bulkCheckRequested = true;
-        $this->syncMessage = \App\Support\SystemBranding::text('Sedang mengambil seluruh rilisan Uploading Dimensi Suara dan memeriksa ulang status SoundOn.');
+        $this->syncMessage = \App\Support\SystemBranding::text('Sedang mengambil seluruh rilisan Uploading Dimensi Suara dan memeriksa ulang status Aggregator.');
     }
 
     public function pollStatusUpdates(): void
@@ -352,14 +352,14 @@ final class ReleaseStatus extends Component
 
         $label = $this->soundOnStatus === 'under_review' ? 'Under Review' : 'Not Approve';
         $this->bulkCheckRequested = $jobs->isNotEmpty();
-        $this->syncMessage = $jobs->count().' rilisan di tab '.$label.' diantrikan untuk cek ulang status SoundOn.';
+        $this->syncMessage = $jobs->count().' rilisan di tab '.$label.' diantrikan untuk cek ulang status Aggregator.';
     }
 
     public function checkSoundOnStatus(string $jobId): void
     {
         $job = ReleaseJob::query()->findOrFail($jobId);
         if (in_array($job->soundon_check_status, ['queued', 'checking'], true)) {
-            $this->syncMessage = 'Pemeriksaan SoundOn untuk '.$job->release_title.' masih berjalan.';
+            $this->syncMessage = 'Pemeriksaan Aggregator untuk '.$job->release_title.' masih berjalan.';
             return;
         }
         if (! in_array($job->soundfresh_workflow_status, ['under_review', 'uploading'], true)) {
@@ -376,7 +376,7 @@ final class ReleaseStatus extends Component
         ]);
         $sourceStatus = $job->soundfresh_workflow_status;
         CheckSoundOnReleaseStatus::dispatch($job->id, null, $sourceStatus);
-        $this->syncMessage = 'Pemeriksaan SoundOn untuk '.$job->release_title.' sudah masuk antrean.';
+        $this->syncMessage = 'Pemeriksaan Aggregator untuk '.$job->release_title.' sudah masuk antrean.';
     }
 
     public function sendToSoundfresh(string $jobId): void
@@ -394,7 +394,7 @@ final class ReleaseStatus extends Component
             return;
         }
         if (! filled($job->soundon_upc) || $isrcs === []) {
-            $this->syncMessage = 'UPC dan ISRC SoundOn belum tersedia untuk rilisan ini.';
+            $this->syncMessage = 'UPC dan ISRC Aggregator belum tersedia untuk rilisan ini.';
 
             return;
         }
@@ -405,7 +405,7 @@ final class ReleaseStatus extends Component
         }
 
         if ($job->cmsVerificationIdentifiers() === null) {
-            $this->syncMessage = 'Verify Release memerlukan status SoundOn Approved, Delivered, atau Live dan seluruh kode UPC/ISRC yang valid.';
+            $this->syncMessage = 'Verify Release memerlukan status Aggregator Approved, Delivered, atau Live dan seluruh kode UPC/ISRC yang valid.';
             return;
         }
 
@@ -418,7 +418,7 @@ final class ReleaseStatus extends Component
     {
         $job = ReleaseJob::query()->findOrFail($jobId);
         if ($job->soundon_release_status !== 'not_approved' || $job->soundfresh_workflow_status !== 'uploading') {
-            $this->syncMessage = 'Reject hanya tersedia untuk rilisan Uploading yang berstatus Not Approved di SoundOn.';
+            $this->syncMessage = 'Reject hanya tersedia untuk rilisan Uploading yang berstatus Not Approved di Aggregator.';
 
             return;
         }
@@ -442,7 +442,7 @@ final class ReleaseStatus extends Component
         $job = ReleaseJob::query()->findOrFail($jobId);
         $reason = trim($this->rejectReason);
         if ($job->soundon_release_status !== 'not_approved') {
-            $this->syncMessage = 'Aksi Reject hanya tersedia untuk rilisan berstatus Not Approved di SoundOn.';
+            $this->syncMessage = 'Aksi Reject hanya tersedia untuk rilisan berstatus Not Approved di Aggregator.';
             return;
         }
         if ($job->soundfresh_workflow_status !== 'uploading') {
@@ -510,7 +510,7 @@ final class ReleaseStatus extends Component
 
         return response()->streamDownload(function () use ($jobs): void {
             echo '<html><head><meta charset="UTF-8"></head><body><table border="1">';
-            echo '<thead><tr><th>Judul Rilis</th><th>Nama Artis</th><th>Tanggal Rilis</th><th>Link SoundOn</th></tr></thead><tbody>';
+            echo '<thead><tr><th>Judul Rilis</th><th>Nama Artis</th><th>Tanggal Rilis</th><th>Link Aggregator</th></tr></thead><tbody>';
             foreach ($jobs as $job) {
                 $cells = [
                     $job->release_title ?: 'Rilisan #'.$job->soundfresh_release_id,
@@ -648,8 +648,8 @@ final class ReleaseStatus extends Component
         $scanLabel = match ($scanPhase) {
             'queued' => 'Menunggu antrean pemeriksaan...',
             'collecting' => 'Mengambil rilisan Uploading...',
-            'checking' => 'Memeriksa SoundOn '.$scanFinished.' / '.$scanTotal,
-            default => 'Cek Status SoundOn',
+            'checking' => 'Memeriksa Aggregator '.$scanFinished.' / '.$scanTotal,
+            default => 'Cek Status Aggregator',
         };
         if ($this->statusRunId) $this->bulkCheckRequested = (bool) $scanActive;
 

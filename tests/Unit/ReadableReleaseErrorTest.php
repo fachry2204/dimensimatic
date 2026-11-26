@@ -5,6 +5,14 @@ use PHPUnit\Framework\TestCase;
 
 class ReadableReleaseErrorTest extends TestCase
 {
+    public function test_legacy_monetization_details_do_not_repeat_an_incorrect_ui_diagnosis(): void
+    {
+        $message = 'Field atau tombol tidak ditemukan karena tampilan berubah. Detail teknis: SOUNDON_MONETIZATION_NOT_ENABLED:YouTube Content ID';
+        $this->assertSame('SOUNDON_MONETIZATION_NOT_ENABLED', ReadableReleaseError::displayCode('UI_CHANGED', $message));
+        $this->assertSame('SOUNDON_MONETIZATION_NOT_ENABLED:YouTube Content ID', ReadableReleaseError::technicalDetails('UI_CHANGED', $message));
+        $this->assertSame('UPLOAD_FAILED — Audio upload failed', ReadableReleaseError::technicalDetails('UPLOAD_FAILED', 'Audio upload failed'));
+    }
+
     public function test_old_review_button_failure_reports_saved_draft_and_review_only_retry(): void
     {
         $result = ReadableReleaseError::explain('AUTOMATION_FAILED', 'SOUNDFRESH_UI_CHANGED:review_release_button:url=https://dimensisuara.id/admin/releases/3833');

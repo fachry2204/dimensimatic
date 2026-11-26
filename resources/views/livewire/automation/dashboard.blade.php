@@ -1,7 +1,7 @@
 <div wire:poll.2s.keep-alive="refreshMonitor">
     <x-automation-nav />
 
-    <main class="page-shell">
+    <main id="main-content" class="page-shell dashboard-page" tabindex="-1">
         @if ($configurationError)
             <div role="alert" class="mb-6 info-banner" style="border-color:#f2d49b;background:#fff9ec;color:#8c5a11">
                 <div><strong>Konfigurasi belum lengkap.</strong> {{ $configurationError }} <a class="font-semibold underline" href="{{ route('automation.sessions') }}">Buka Pengaturan</a></div>
@@ -10,7 +10,7 @@
 
         @if ($uploadMessage)
             <div role="status" class="mb-6 info-banner">
-                <div><strong>Upload draft SoundOn.</strong> {{ $uploadMessage }}</div>
+                <div><strong>Upload draft Aggregator.</strong> {{ $uploadMessage }}</div>
             </div>
         @endif
 
@@ -23,25 +23,22 @@
         <section class="page-heading">
             <div>
                 <div class="eyebrow">Operations overview</div>
-                <h1 class="page-title">SoundOn Release Automation</h1>
-                <p class="page-subtitle">Pantau pipeline {{ $cmsName }} ke SoundOn, status sesi, dan pekerjaan yang membutuhkan tindakan dari satu tempat.</p>
+                <h1 class="page-title">Ringkasan Operasional</h1>
+                <p class="page-subtitle">Pantau pipeline {{ $cmsName }} ke Aggregator, status sesi, dan pekerjaan yang membutuhkan tindakan dari satu tempat.</p>
             </div>
             @can('automation.run')
                 <div class="dashboard-primary-actions">
                     <div class="flex flex-wrap items-center gap-3">
-                    <button wire:click="start" wire:loading.attr="disabled" wire:confirm="Bersihkan seluruh data monitor, status SoundOn, notifikasi, dan antrean lama lalu ambil ulang semua rilisan pending?" class="primary-button">
+                    <button wire:click="start" wire:loading.attr="disabled" wire:confirm="Bersihkan seluruh data monitor, status Aggregator, notifikasi, dan antrean lama lalu ambil ulang semua rilisan pending?" class="primary-button">
                         <span wire:loading.remove wire:target="start">Ambil semua rilisan pending</span>
                         <span wire:loading wire:target="start">Menyiapkan...</span>
                     </button>
                     <span class="primary-button" style="background:#0f766e; cursor:default" role="status">
                         Upload otomatis aktif
                     </span>
-                    <button type="button" wire:click="stopAllWorkers" wire:loading.attr="disabled" wire:confirm="Yakin ingin menghentikan SEMUA worker, antrean, dan proses automation yang sedang berjalan?" class="secondary-button" style="border-color:#f4b8bf;background:#fff1f3;color:#a72f3d;font-weight:700;">
-                        <span wire:loading.remove wire:target="stopAllWorkers">🛑 Hentikan Semua Worker</span>
-                        <span wire:loading wire:target="stopAllWorkers">Menghentikan...</span>
-                    </button>
+
                     </div>
-                    <p class="dashboard-action-hint">Semua rilisan nonduplikat langsung di-upload ke SoundOn setelah pemeriksaan duplikat selesai. Rilisan duplikat tetap diblokir.</p>
+                    <p class="dashboard-action-hint">Semua rilisan nonduplikat langsung di-upload ke Aggregator setelah pemeriksaan duplikat selesai. Rilisan duplikat tetap diblokir.</p>
                 </div>
             @endcan
         </section>
@@ -53,12 +50,12 @@
                 <p class="metric-meta">Rilisan Pending pada monitor aktif</p>
             </article>
             <article class="metric-card" style="--metric-soft:#fff4df">
-                <p class="metric-label">Berhasil upload ke SoundOn</p>
+                <p class="metric-label">Berhasil upload ke Aggregator</p>
                 <p class="metric-value" style="color:#047857">{{ $soundonUploadSuccessCount }}</p>
-                <p class="metric-meta">Berhasil tersimpan sebagai draft SoundOn</p>
+                <p class="metric-meta">Berhasil tersimpan sebagai draft Aggregator</p>
             </article>
             <article class="metric-card" style="--metric-soft:#e8f8f2">
-                <p class="metric-label">Gagal upload ke SoundOn</p>
+                <p class="metric-label">Gagal upload ke Aggregator</p>
                 <p class="metric-value" style="color:#dc2626">{{ $soundonUploadFailedCount }}</p>
                 <p class="metric-meta">Rilisan gagal atau membutuhkan perhatian</p>
             </article>
@@ -68,7 +65,7 @@
                     @forelse ($accounts as $account)
                         <span class="badge {{ $account->status === 'active' ? 'badge--success' : 'badge--warning' }}">
                             <span class="status-dot {{ $account->status === 'active' ? 'status-dot--active' : 'status-dot--warning' }}"></span>
-                            {{ $account->platform->value }} · {{ $account->status }}
+                            {{ $account->platform->value === 'soundon' ? 'Aggregator' : $cmsName }} · {{ $account->status }}
                         </span>
                     @empty
                         <span class="text-xs text-slate-400">Belum diperiksa</span>
@@ -78,7 +75,15 @@
             </article>
         </section>
 
-        <section class="panel mt-6">
+        <section class="panel mt-5 dashboard-worker-panel" x-data="{ workerControls: false }">
+            <div class="service-health-bar">
+                <strong>Kesehatan Worker</strong>
+                <span class="badge {{ $workerOnline ? 'badge--success' : 'badge--danger' }}">Browser {{ $workerOnline ? 'Online' : 'Offline' }}</span>
+                <span class="badge {{ $systemStatus['queues_online'] ? 'badge--success' : 'badge--warning' }}">Antrean {{ $systemStatus['queues_online'] ? 'Aktif' : 'Offline' }}</span>
+                <span class="badge badge--brand">{{ $verificationActiveCount + $statusCheckActiveCount }} pemeriksaan aktif</span>
+                <button type="button" class="secondary-button" :aria-expanded="workerControls" aria-controls="worker-controls" @click="workerControls = !workerControls">Kelola Worker</button>
+            </div>
+            <div id="worker-controls" x-show="workerControls" x-cloak>
             <header class="panel-header flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <div class="flex items-center gap-2">
@@ -188,17 +193,18 @@
                     @endcan
                 </div>
             </div>
+            </div>
         </section>
 
         <section class="panel mt-6">
             <header class="panel-header">
                 <div>
                     <h2 class="panel-title">Monitor rilisan</h2>
-                    <p class="panel-copy">Status setiap rilisan sejak ditemukan di {{ $cmsName }} sampai disimpan sebagai draft di SoundOn.</p>
+                    <p class="panel-copy">Status setiap rilisan sejak ditemukan di {{ $cmsName }} sampai disimpan sebagai draft di Aggregator.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <span class="badge badge--brand">{{ $releaseCount }} rilisan diambil</span>
-                    <span class="badge badge--success">{{ $draftCount }} draft SoundOn</span>
+                    <span class="badge badge--success">{{ $draftCount }} draft Aggregator</span>
                     <span class="badge {{ $systemStatus['worker'] ? 'badge--success' : 'badge--danger' }}">Browser worker: {{ $systemStatus['worker'] ? 'Online' : 'Offline' }}</span>
                     <span class="badge badge--brand">Worker proses: {{ $activeJobs->count() }} / {{ $systemStatus['browser_slots'] }}</span>
                 </div>
@@ -231,12 +237,12 @@
                     <div class="mt-3 h-3 overflow-hidden rounded-full bg-indigo-100" role="progressbar" aria-label="Progress rilisan aktif {{ $activeTitle }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $activePercent }}">
                         <div class="h-full animate-pulse rounded-full bg-indigo-600 transition-all duration-500" style="width: {{ $activePercent }}%"></div>
                     </div>
-                    <p class="mt-2 text-[11px] text-indigo-500">Pengisian form SoundOn melalui browser dapat membutuhkan beberapa menit. Panel ini berubah otomatis setiap 3 detik saat worker berpindah tahap atau rilisan.</p>
+                    <p class="mt-2 text-[11px] text-indigo-500">Pengisian form Aggregator melalui browser dapat membutuhkan beberapa menit. Panel ini berubah otomatis setiap 3 detik saat worker berpindah tahap atau rilisan.</p>
                 </div>
             @elseif($duplicateCheckingCount > 0)
                 <div class="border-t border-indigo-100 bg-indigo-50 px-5 py-3 text-xs font-semibold text-indigo-800" role="status" aria-live="polite">
                     <div class="flex items-center justify-between gap-3">
-                        <span>Memeriksa duplikat {{ $duplicateCheckingCount }} rilisan di {{ $cmsName }}, All releases SoundOn, dan Drafts SoundOn</span>
+                        <span>Memeriksa duplikat {{ $duplicateCheckingCount }} rilisan di {{ $cmsName }}, All releases Aggregator, dan Drafts Aggregator</span>
                         <strong>{{ $duplicateProgressPercent }}%</strong>
                     </div>
                     <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-indigo-100" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $duplicateProgressPercent }}">
@@ -281,7 +287,7 @@
                 </div>
             </div>
             <div wire:loading.remove wire:target="start" class="table-scroll">
-                <table class="data-table release-monitor-table">
+                <table class="data-table release-monitor-table" data-card-table>
                     <colgroup>
                         <col class="release-col--title">
                         <col class="release-col--source">
@@ -290,7 +296,7 @@
                         <col class="release-col--status">
                         <col class="release-col--updated">
                     </colgroup>
-                    <thead><tr><th>Rilisan</th><th>Status {{ $cmsName }}</th><th>Status SoundOn</th><th>Progress</th><th>Status Proses</th><th>Diperbarui</th></tr></thead>
+                    <thead><tr><th>Rilisan</th><th>Status {{ $cmsName }}</th><th>Status Aggregator</th><th>Progress</th><th>Status Proses</th><th>Diperbarui</th></tr></thead>
                     <tbody wire:key="release-monitor-body-{{ $monitorRun?->id ?? 'none' }}-{{ $releaseJobs->isEmpty() ? 'empty' : 'populated' }}">
                     @forelse ($releaseJobs as $job)
                         @php
@@ -321,7 +327,7 @@
                             $progressLabel = ($jobStatus === 'running' || $job->error_code === 'DUPLICATE_CHECK_PENDING') && filled($job->progress_label) ? $job->progress_label : ($jobStatus === 'stopped' ? 'Proses dihentikan' : ($jobStatus === 'queued' ? match ($checkpoint) {
                                 'discovered' => 'Menunggu giliran ekstraksi',
                                 'metadata_extracted' => 'Metadata siap — menunggu unduh aset',
-                                'assets_downloaded' => 'Aset siap — menunggu giliran SoundOn',
+                                'assets_downloaded' => 'Aset siap — menunggu giliran Aggregator',
                                 'soundon_draft_created' => 'Draft siap — menunggu pengisian',
                                 'metadata_filled' => 'Metadata siap — menunggu upload aset',
                                 'assets_uploaded' => 'Upload siap — menunggu simpan draft',
@@ -358,18 +364,18 @@
                                 @if ($hasDraft)
                                     @php
                                         $draftLabel = $job->soundon_draft_status === 'already_exists'
-                                            ? 'Sudah ada di draft SoundOn'
+                                            ? 'Sudah ada di draft Aggregator'
                                             : 'Draft tersimpan';
                                     @endphp
                                     @if ($job->soundon_draft_url)<a href="{{ $job->soundon_draft_url }}" target="_blank" rel="noopener noreferrer" class="badge badge--success">{{ $draftLabel }} ↗</a>@else<span class="badge badge--success">{{ $draftLabel }}</span>@endif
                                     <p class="mt-1 text-[11px] text-slate-400">Draft ID {{ $job->soundon_draft_id }}</p>
                                 @else
-                                    <span class="badge {{ in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) ? 'badge--danger' : 'badge--warning' }}">Belum diunggah</span><p class="mt-1 max-w-44 text-[11px] text-slate-400">{{ in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) && $job->error_code ? \App\Support\SystemBranding::text($job->error_code) : 'Menunggu proses SoundOn' }}</p>
+                                    <span class="badge {{ in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) ? 'badge--danger' : 'badge--warning' }}">Belum diunggah</span><p class="mt-1 max-w-44 text-[11px] text-slate-400">{{ in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) && $job->error_code ? \App\Support\SystemBranding::text(\App\Services\Automation\ReadableReleaseError::displayCode($job->error_code, $job->error_message)) : 'Menunggu proses Aggregator' }}</p>
                                 @endif
                             </td>
                             <td>
                                 <div class="release-progress {{ $progressTone }}">
-                                    <div class="release-progress__copy"><span>{{ $progressLabel }}</span><strong>{{ $jobProgress }}%</strong></div>
+                                    <div class="release-progress__copy"><span>{{ \App\Support\SystemBranding::text($progressLabel) }}</span><strong>{{ $jobProgress }}%</strong></div>
                                     <div class="release-progress__track" role="progressbar" aria-label="Progress {{ $displayTitle }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $jobProgress }}">
                                         <div class="release-progress__bar" style="width: {{ $jobProgress }}%"></div>
                                     </div>
@@ -394,19 +400,6 @@
                             </td>
                             <td>
                                 <span title="{{ $jobStatus === 'queued' ? 'Rilisan sudah tersimpan di antrean dan akan diproses setelah rilisan aktif selesai.' : ($jobStatus === 'running' ? 'Rilisan ini sedang dikerjakan oleh automation worker.' : '') }}" class="badge {{ $jobStatus === 'completed' ? 'badge--success' : (in_array($jobStatus, ['failed','needs_attention','manual_auth_required','stopped']) ? 'badge--danger' : 'badge--warning') }}">{{ $statusLabel }}</span>
-                                @if(in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) && $job->error_message)
-                                    <div class="release-error-box mt-2 rounded-lg border border-red-100 bg-red-50 p-2 text-[11px] text-red-700" title="{{ \App\Support\SystemBranding::text($job->error_message) }}">
-                                        @php
-                                            $readableError = \App\Services\Automation\ReadableReleaseError::explain($job->error_code, $job->error_message);
-                                        @endphp
-                                        <strong class="block">{{ $readableError['title'] }}</strong>
-                                        <p class="mt-1">{{ $readableError['reason'] }}</p>
-                                        @if($readableError['action'])
-                                            <p class="mt-2">{{ $readableError['action'] }}</p>
-                                        @endif
-                                        <details class="mt-2"><summary class="cursor-pointer">Detail teknis</summary><p class="mt-1 break-words">{{ \App\Support\SystemBranding::text($job->error_code) }} — {{ \App\Support\SystemBranding::text($job->error_message) }}</p></details>
-                                    </div>
-                                @endif
                                 @if(in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) && !str_starts_with((string) $job->error_code, 'DUPLICATE_'))
                                     @can('automation.retry')
                                         <button type="button" wire:click="retryRelease('{{ $job->id }}')" wire:loading.attr="disabled" wire:target="retryRelease('{{ $job->id }}')" class="secondary-button mt-2" aria-label="Retry proses {{ $displayTitle }}">
@@ -427,6 +420,16 @@
                             </td>
                             <td>{{ $job->updated_at?->diffForHumans() ?? '—' }}<p class="mt-1 text-[11px]"><a href="{{ route('automation.runs.show', $job->automation_run_id) }}">Buka run {{ Str::limit($job->automation_run_id, 12) }} →</a></p></td>
                         </tr>
+                        @if(in_array($jobStatus, ['failed','needs_attention','manual_auth_required'], true) && $job->error_message)
+                        <tr wire:key="release-monitor-error-{{ $job->id }}" class="release-error-row">
+                            <td colspan="6">
+                                @php
+                                    $readableError = \App\Services\Automation\ReadableReleaseError::explain($job->error_code, $job->error_message);
+                                @endphp
+                                <x-release-warning :reason="$readableError['reason']" :action="$readableError['action']" :technical="\App\Services\Automation\ReadableReleaseError::technicalDetails($job->error_code, $job->error_message)" :detail-key="'release-error-detail-'.$job->id" />
+                            </td>
+                        </tr>
+                        @endif
                     @empty
                         <tr wire:key="release-monitor-empty"><td colspan="6" class="empty-state">
                             @if($monitorRun && $monitorRun->status->value === 'failed' && !empty($monitorRun->summary_json['error']))
@@ -444,14 +447,11 @@
                     </tbody>
                 </table>
             </div>
-            <footer wire:loading.remove wire:target="start" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-xs text-slate-500"><span>Monitor hanya menampilkan {{ $releaseCount }} rilisan dari pengambilan terbaru.</span><span><strong>Catatan:</strong> sistem tidak melakukan publish otomatis; hasil akhir selalu berupa draft SoundOn.</span></footer>
+            <footer wire:loading.remove wire:target="start" class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-xs text-slate-500"><span>Monitor hanya menampilkan {{ $releaseCount }} rilisan dari pengambilan terbaru.</span><span><strong>Catatan:</strong> sistem tidak melakukan publish otomatis; hasil akhir selalu berupa draft Aggregator.</span></footer>
         </section>
 
-        <section class="panel mt-6">
-            <header class="panel-header">
-                <div><h2 class="panel-title">Aktivitas automation terbaru</h2><p class="panel-copy">Riwayat eksekusi dan progres pipeline rilisan.</p></div>
-                <span class="badge badge--brand">Live · 3 detik</span>
-            </header>
+        <details class="panel mt-6 run-control-disclosure">
+            <summary>Kontrol proses otomatisasi <span class="ml-2 text-xs font-normal text-slate-400">Lihat proses, jeda, lanjutkan, atau hentikan</span></summary>
             <div class="table-scroll">
                 <table class="data-table">
                     <thead><tr><th>Run ID</th><th>Status</th><th>Pending ditemukan</th><th>Total job</th><th>Waktu mulai</th><th>Aksi</th></tr></thead>
@@ -507,11 +507,11 @@
                     </tbody>
                 </table>
             </div>
-        </section>
+        </details>
 
         <div class="info-banner mt-5">
             <strong>Draft-only protection</strong>
-            <span>Semua proses berhenti pada tahap draft. Review {{ $cmsName }} hanya berjalan setelah referensi draft SoundOn tersedia.</span>
+            <span>Semua proses berhenti pada tahap draft. Review {{ $cmsName }} hanya berjalan setelah referensi draft Aggregator tersedia.</span>
         </div>
 
         @if($showWorkerOperationModal)

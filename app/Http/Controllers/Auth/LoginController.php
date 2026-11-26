@@ -17,14 +17,14 @@ final class LoginController extends Controller
 {
     public function create(LocalSystemManager $system): View
     {
-        return view('auth.login', ['systemStatus' => $system->status()]);
+        return view('auth.login', ['systemStatus' => $system->displayStatus()]);
     }
 
     public function systemStatus(Request $request, LocalSystemManager $system): JsonResponse
     {
         $this->ensureLocalRequest($request);
 
-        return response()->json($system->status());
+        return response()->json($system->displayStatus());
     }
 
     public function startSystem(Request $request, LocalSystemManager $system): RedirectResponse

@@ -35,7 +35,12 @@ final class SystemBranding
 
     public static function name(): string
     {
-        return self::setting()?->system_name ?: 'Dimensimatic';
+        $name = trim(self::setting()?->system_name ?? '');
+        if (in_array(strtolower($name), ['', 'dimensimatic', 'soundfresh', 'soundfresh.id', 'soundflow'], true)) {
+            return 'DimensiMatic';
+        }
+
+        return preg_replace('/\\bSoundfresh(?:\\.ID)?\\b/iu', 'DimensiMatic', $name) ?? $name;
     }
 
     public static function cmsName(): string
@@ -57,7 +62,9 @@ final class SystemBranding
     public static function text(?string $text): string
     {
         $value = preg_replace('/SOUNDFRESH_/', 'CMS_', $text ?? '') ?? '';
+        // Presentation alias only: keep platform keys, URLs and error codes intact.
+        $value = preg_replace('/(?<![\\w.\\/])SoundOn(?![\\w.\\/])/iu', 'Aggregator', $value) ?? '';
         return preg_replace_callback('/(?<!\\w)('.preg_quote(self::name(), '/').'|Soundfresh(?:\\.ID)?|Dimensi Suara|SoundFlow|Dimensimatic)(?!\\w)/iu',
-            static fn (array $match): string => strcasecmp($match[0], self::name()) === 0 ? self::name() : (preg_match('/^(Soundfresh|Dimensi Suara)/i', $match[0]) ? self::cmsName() : self::name()), $value) ?? '';
+            static fn (array $match): string => strcasecmp($match[0], self::name()) === 0 ? self::name() : (preg_match('/^Dimensi Suara/i', $match[0]) ? self::cmsName() : self::name()), $value) ?? '';
     }
 }

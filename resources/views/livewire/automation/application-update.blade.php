@@ -1,6 +1,6 @@
 <div>
     <x-automation-nav />
-    <main class="page-shell">
+    <main id="main-content" class="page-shell update-page" tabindex="-1">
         <section class="page-heading">
             <div>
                 <div class="eyebrow">Application maintenance</div>
@@ -26,11 +26,8 @@
                     <span class="badge badge--brand">Versi lokal {{ $currentVersion }}</span>
                 @endif
             </header>
-            <div class="grid gap-5 p-5 md:grid-cols-2">
-                <div>
-                    <p class="text-xs font-semibold text-slate-500">Versi terpasang</p>
-                    <p class="mt-2 text-2xl font-bold text-slate-800">v{{ $currentVersion }}</p>
-                </div>
+            <div class="update-version-hero"><img src="{{ $systemFavicon ?: $systemDefaultFavicon }}" alt=""><div><span>Versi terpasang · {{ $systemName }}</span><strong>v{{ $currentVersion }}</strong><span>Pembaruan resmi melalui GitHub Release</span></div></div>
+            <div class="version-remote">
                 <div>
                     <p class="text-xs font-semibold text-slate-500">Versi GitHub terbaru</p>
                     <p class="mt-2 text-2xl font-bold text-slate-800">{{ $latestVersion ? 'v'.$latestVersion : 'Belum dicek' }}</p>
@@ -42,7 +39,7 @@
                     <span wire:loading.remove wire:target="checkForUpdate">Cek Update</span>
                     <span wire:loading wire:target="checkForUpdate">Mengecek GitHub...</span>
                 </button>
-                <button type="button" wire:click="downloadAndInstall" wire:confirm="Download dan jalankan installer update {{ $systemName }} sekarang? Setelah download selesai, aplikasi otomatis ditutup dan installer dijalankan." wire:loading.attr="disabled" wire:target="downloadAndInstall" @disabled(! $updateAvailable || ! $installerUrl) class="primary-button">
+                <button type="button" wire:click="requestInstall" wire:loading.attr="disabled" wire:target="requestInstall" @disabled(! $updateAvailable || ! $installerUrl) class="primary-button">
                     <span wire:loading.remove wire:target="downloadAndInstall">Download &amp; Install Update</span>
                     <span wire:loading wire:target="downloadAndInstall">Download update...</span>
                 </button>

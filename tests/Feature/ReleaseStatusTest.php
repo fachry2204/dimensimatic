@@ -629,7 +629,7 @@ final class ReleaseStatusTest extends TestCase
         Livewire::test(ReleaseStatus::class)
             ->call('refreshSoundOnStatuses')
             ->assertSet('bulkCheckRequested', true)
-            ->assertSet('syncMessage', 'Sedang mengambil seluruh rilisan Uploading Dimensi Suara dan memeriksa ulang status SoundOn.');
+            ->assertSet('syncMessage', 'Sedang mengambil seluruh rilisan Uploading Dimensi Suara dan memeriksa ulang status Aggregator.');
 
         // Non-status pipeline data must remain intact when replacing only the status snapshot.
         $this->assertDatabaseHas('release_jobs', ['id' => $existing->id, 'soundon_check_status' => 'detected']);
@@ -711,7 +711,7 @@ final class ReleaseStatusTest extends TestCase
             ->assertDontSeeHtml('wire:model.live="checkSourceTab"')
             ->assertDontSeeHtml('aria-label="Tab status SoundOn"')
             ->call('refreshSoundOnStatuses')
-            ->assertSet('syncMessage', 'Sedang mengambil seluruh rilisan Uploading Dimensi Suara dan memeriksa ulang status SoundOn.');
+            ->assertSet('syncMessage', 'Sedang mengambil seluruh rilisan Uploading Dimensi Suara dan memeriksa ulang status Aggregator.');
 
         Queue::assertPushed(QueueSoundOnStatusChecks::class, fn ($queued) => $queued->sourceTab === 'uploading');
     }
@@ -984,7 +984,7 @@ final class ReleaseStatusTest extends TestCase
             ->assertSeeHtml("checkSoundOnStatus('{$job->id}')")
             ->call('checkSoundOnStatus', $job->id)
             ->assertSee('Menunggu')
-            ->assertSet('syncMessage', 'Pemeriksaan SoundOn untuk Rilisan Cek Tunggal sudah masuk antrean.');
+            ->assertSet('syncMessage', 'Pemeriksaan Aggregator untuk Rilisan Cek Tunggal sudah masuk antrean.');
 
         $job->refresh();
         $this->assertSame('queued', $job->soundon_check_status);
@@ -1041,7 +1041,7 @@ final class ReleaseStatusTest extends TestCase
             ->assertOk()
             ->assertSee('Sedang diperiksa')
             ->assertSee('Progress pemeriksaan Rilisan Sedang Dicek')
-            ->assertSee('Mencari Rilisan Sedang Dicek di SoundOn');
+            ->assertSee('Mencari Rilisan Sedang Dicek di Aggregator');
     }
 
     public function test_poll_finalizes_orphaned_checking_releases_when_queue_is_empty(): void
@@ -1303,7 +1303,7 @@ final class ReleaseStatusTest extends TestCase
             $this->assertStringContainsString('Judul Rilis', $decoded);
             $this->assertStringContainsString('Nama Artis', $decoded);
             $this->assertStringContainsString('Tanggal Rilis', $decoded);
-            $this->assertStringContainsString('Link SoundOn', $decoded);
+            $this->assertStringContainsString('Link Aggregator', $decoded);
             $this->assertStringContainsString('Rilis Hari Ini Excel', $decoded);
             $this->assertStringContainsString('Rilis Terlewat Excel', $decoded);
             $this->assertStringContainsString('Rilis Tetap Diekspor Saat Scan', $decoded);

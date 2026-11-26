@@ -4,6 +4,25 @@ namespace App\Services\Automation;
 
 final class ReadableReleaseError
 {
+    public static function displayCode(?string $code, ?string $message): string
+    {
+        return str_contains(strtoupper((string) $message), 'SOUNDON_MONETIZATION_NOT_ENABLED')
+            ? 'SOUNDON_MONETIZATION_NOT_ENABLED' : (string) $code;
+    }
+
+    public static function technicalDetails(?string $code, ?string $message): string
+    {
+        if (self::displayCode($code, $message) === 'SOUNDON_MONETIZATION_NOT_ENABLED') {
+            // Legacy records wrapped this specific failure in a generic UI_CHANGED
+            // explanation. Preserve its technical evidence without repeating that diagnosis.
+            if (preg_match('/SOUNDON_MONETIZATION_NOT_ENABLED(?::[^\r\n]*)?/i', (string) $message, $match)) {
+                return $match[0];
+            }
+        }
+
+        return (string) $code.' — '.(string) $message;
+    }
+
     public static function explain(?string $code, ?string $message): array
     {
         $message = (string) $message;

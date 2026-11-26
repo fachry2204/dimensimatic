@@ -1,7 +1,7 @@
 <div>
     <x-automation-nav />
 
-    <main class="page-shell">
+    <main id="main-content" class="page-shell users-page" tabindex="-1">
         <section class="page-heading">
             <div>
                 <div class="eyebrow">User &amp; Access Control</div>
@@ -17,7 +17,7 @@
             </div>
         @endif
 
-        <div class="grid gap-6 lg:grid-cols-3">
+        <div class="user-workspace">
             <article class="panel overflow-hidden lg:col-span-1">
                 <header class="panel-header">
                     <div>
@@ -28,26 +28,26 @@
 
                 <form wire:submit="createUser" class="space-y-4 p-5">
                     <div>
-                        <label class="form-label">Nama Lengkap</label>
-                        <input type="text" wire:model="name" class="form-input" placeholder="Nama user" required>
+                        <label for="user-create-name" class="form-label">Nama Lengkap</label>
+                        <input id="user-create-name" type="text" wire:model="name" class="form-input" placeholder="Nama user" required>
                         @error('name') <span class="text-xs text-red-500">{{ \App\Support\SystemBranding::text($message) }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Username</label>
-                        <input type="text" wire:model="username" class="form-input" placeholder="username_tanpa_spasi" required>
+                        <label for="user-create-username" class="form-label">Username</label>
+                        <input id="user-create-username" type="text" wire:model="username" class="form-input" placeholder="username_tanpa_spasi" required>
                         @error('username') <span class="text-xs text-red-500">{{ \App\Support\SystemBranding::text($message) }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Password</label>
-                        <input type="password" wire:model="password" class="form-input" placeholder="Minimal 6 karakter" required>
+                        <label for="user-create-password" class="form-label">Password</label>
+                        <input id="user-create-password" type="password" wire:model="password" class="form-input" placeholder="Minimal 6 karakter" required>
                         @error('password') <span class="text-xs text-red-500">{{ \App\Support\SystemBranding::text($message) }}</span> @enderror
                     </div>
 
                     <div>
-                        <label class="form-label">Pilih Role</label>
-                        <select wire:model="role" class="form-input">
+                        <label for="user-create-role" class="form-label">Pilih Role</label>
+                        <select id="user-create-role" wire:model="role" class="form-input">
                             <option value="Staff">Staff (Hanya Cek Status Rilis)</option>
                             <option value="Admin">Admin (Akses Penuh)</option>
                         </select>
@@ -89,7 +89,7 @@
                                     <td><span class="text-xs text-slate-500">{{ $user->username }}</span></td>
                                     <td>
                                         <div class="flex min-w-48 items-center gap-2">
-                                            <select wire:model="userRoles.{{ $user->id }}" class="form-input !py-2">
+                                            <select aria-label="Role untuk {{ $user->name }}" wire:model="userRoles.{{ $user->id }}" class="form-input !py-2">
                                                 @foreach ($roles as $availableRole)
                                                     <option value="{{ $availableRole }}">{{ $availableRole }}</option>
                                                 @endforeach

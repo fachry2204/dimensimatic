@@ -7,26 +7,45 @@ namespace App\Livewire\Automation;
 use Illuminate\Support\Facades\Http;
 use Livewire\Component;
 use Throwable;
+use App\Services\Automation\UpdateReleaseFeed;
+use App\Actions\Automation\StopWorkForUpdate;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Cache;
+use App\Services\Automation\UpdateBackup;
+use Livewire\Attributes\Locked;
 
-final class ApplicationUpdate extends Component
+class ApplicationUpdate extends Component
 {
     public ?string $message = null;
 
+    #[Locked]
     public string $currentVersion = '';
 
+    #[Locked]
     public ?string $latestVersion = null;
 
+    #[Locked]
     public ?string $latestTag = null;
 
     public ?string $releaseUrl = null;
 
+    #[Locked]
     public ?string $installerName = null;
 
+    #[Locked]
     public ?string $installerUrl = null;
 
+    #[Locked]
+    public ?string $installerSha256 = null;
+
+    #[Locked]
     public bool $updateAvailable = false;
 
+    #[Locked]
     public bool $installStarted = false;
+
+    #[Locked]
+    public bool $downloadReady = false;
 
     public function mount(): void
     {
@@ -44,6 +63,7 @@ final class ApplicationUpdate extends Component
         $this->updateAvailable = false;
         $this->installerName = null;
         $this->installerUrl = null;
+        $this->installerSha256 = null;
         $this->latestVersion = null;
         $this->latestTag = null;
         $this->releaseUrl = null;
@@ -53,31 +73,19 @@ final class ApplicationUpdate extends Component
             return;
         }
         try {
-            $response = Http::acceptJson()
-                ->withHeaders(['User-Agent' => 'Dimensimatic-Updater'])
-                ->timeout(20)
-                ->get("https://api.github.com/repos/{$repository}/releases/latest");
-            if ($response->failed()) {
-                $this->message = match ($response->status()) {
-                    404 => 'GitHub tidak menyediakan Release yang dapat diakses (HTTP 404). Repository mungkin privat, alamat salah, atau belum memiliki Release publik. Cek Update memerlukan repository dan Release yang dapat diakses tanpa login GitHub.',
-                    401 => 'Akses GitHub ditolak (HTTP 401). Repository update memerlukan autentikasi.',
-                    403, 429 => 'GitHub membatasi atau menolak akses update (HTTP '.$response->status().'). Coba lagi nanti dan periksa akses repository.',
-                    default => 'Server GitHub gagal melayani pemeriksaan update (HTTP '.$response->status().'). Coba lagi nanti.',
-                };
-                return;
-            }
-            $release = $response->json();
-            if (! is_array($release) || ! isset($release['tag_name'])) {
-                $this->message = 'Respons GitHub bukan data Release yang valid. Periksa alamat repository update.';
-                return;
-            }
+            $release = app(UpdateReleaseFeed::class)->checkNow();
         } catch (Throwable $error) {
-            $this->message = 'Gagal cek update dari GitHub. Periksa koneksi internet lalu coba lagi.';
+            $this->message = $error instanceof \RuntimeException ? $error->getMessage() : 'Gagal cek update dari GitHub. Periksa koneksi internet lalu coba lagi.';
             $this->updateAvailable = false;
 
             return;
         }
 
+        $this->applyRelease($release);
+    }
+
+    protected function applyRelease(array $release): void
+    {
         $this->latestTag = (string) ($release['tag_name'] ?? '');
         $this->releaseUrl = (string) ($release['html_url'] ?? '');
         $asset = collect($release['assets'] ?? [])->first(function (array $asset): bool {
@@ -87,9 +95,11 @@ final class ApplicationUpdate extends Component
         });
         $this->installerName = $asset ? (string) ($asset['name'] ?? '') : null;
         $this->installerUrl = $asset ? (string) ($asset['browser_download_url'] ?? '') : null;
+        $this->installerSha256 = preg_match('/^sha256:([a-f0-9]{64})$/i', (string) ($asset['digest'] ?? ''), $digest) ? strtolower($digest[1]) : null;
         $this->latestVersion = $this->extractVersion($this->latestTag)
             ?? $this->extractVersion((string) $this->installerName)
             ?? '0.0.0';
+        if ($this->extractVersion($this->installerName) !== $this->latestVersion) $this->installerUrl = null;
         $this->updateAvailable = version_compare($this->latestVersion, $this->currentVersion, '>');
 
         if (! $this->updateAvailable) {
@@ -102,7 +112,13 @@ final class ApplicationUpdate extends Component
             : 'Update tersedia: '.$this->latestTag.', tetapi file installer tidak ditemukan di GitHub Release.';
     }
 
-    public function downloadAndInstall(): void
+    public function requestInstall(): void
+    {
+        Gate::authorize('sessions.manage');
+        $this->dispatch('show-update-confirmation');
+    }
+
+    public function downloadAndInstall(bool $confirmed = false, bool $desktop = false): void
     {
         if (! $this->updateAvailable || blank($this->installerUrl) || blank($this->installerName)) {
             $this->message = 'Cek update terlebih dahulu. Installer GitHub Release belum tersedia.';
@@ -110,12 +126,33 @@ final class ApplicationUpdate extends Component
             return;
         }
 
+        Gate::authorize('sessions.manage');
+        if (!$confirmed) {
+            $this->message = 'Konfirmasi diperlukan: update sistem dan hentikan semua pekerjaan terlebih dahulu.';
+            return;
+        }
+        if ($this->installStarted) return;
+        $repository = (string) config('automation.update_repository');
+        $expectedUrl = "https://github.com/{$repository}/releases/download/{$this->latestTag}/{$this->installerName}";
+        if ($this->installerUrl !== $expectedUrl || !version_compare((string) $this->latestVersion, $this->currentVersion, '>')) {
+            $this->message = 'Sumber atau versi installer tidak valid. Cek update kembali.';
+            return;
+        }
         if (preg_match('/^Dimensimatic-Setup-v[0-9]+\.[0-9]+\.[0-9]+\.exe$/i', (string) $this->installerName) !== 1) {
             $this->message = \App\Support\SystemBranding::text('Installer harus merupakan paket Dimensimatic.');
 
             return;
         }
 
+        $lock = Cache::store('file')->lock('dimensimatic-update-install:'.sha1(base_path()), 1900);
+        if (!$lock->get()) { $this->message = 'Update lain sedang diproses.'; return; }
+        try {
+            $this->performDownloadAndInstall($desktop);
+        } finally { $lock->release(); }
+    }
+
+    protected function performDownloadAndInstall(bool $desktop): void
+    {
         try {
             $directory = storage_path('app/updates');
             if (! is_dir($directory)) {
@@ -127,17 +164,30 @@ final class ApplicationUpdate extends Component
                 ->timeout(1800)
                 ->get($this->installerUrl)
                 ->throw();
-            if (! is_file($path) || (! app()->runningUnitTests() && filesize($path) < 10_000_000)) {
+            if (! is_file($path) || (! app()->runningUnitTests() && (filesize($path) < 10_000_000 || file_get_contents($path, false, null, 0, 2) !== 'MZ'))) {
                 @unlink($path);
                 throw new \RuntimeException('Installer update tidak lengkap.');
             }
+            if ($this->installerSha256 && !hash_equals($this->installerSha256, hash_file('sha256', $path))) {
+                @unlink($path);
+                throw new \RuntimeException('Checksum installer tidak cocok.');
+            }
         } catch (Throwable $error) {
-            $this->message = 'Gagal download installer update. Periksa koneksi internet lalu coba lagi.';
+            $this->message = 'Paket update belum siap: '.$error->getMessage(). ' Pekerjaan belum dihentikan.';
 
             return;
         }
 
-        if (PHP_OS_FAMILY === 'Windows' && ! app()->runningUnitTests()) {
+        try {
+            app(StopWorkForUpdate::class)->handle();
+            app(UpdateBackup::class)->capture();
+        } catch (Throwable $error) {
+            $this->message = 'Installer tidak dijalankan: '.$error->getMessage();
+            return;
+        }
+
+        $this->downloadReady = true;
+        if ($desktop && PHP_OS_FAMILY === 'Windows' && ! app()->runningUnitTests()) {
             // PHP runs as a child service of the desktop host. Hand the installer
             // path to WebView2 so the desktop process can launch it independently
             // and close itself immediately. Launching from this short-lived HTTP
@@ -157,7 +207,7 @@ final class ApplicationUpdate extends Component
         return view('livewire.automation.application-update');
     }
 
-    private function extractVersion(?string $value): ?string
+    protected function extractVersion(?string $value): ?string
     {
         if (preg_match('/(?:^|[^0-9])v?(\d+\.\d+\.\d+)(?:[^0-9]|$)/i', (string) $value, $matches) !== 1) {
             return null;
@@ -166,7 +216,7 @@ final class ApplicationUpdate extends Component
         return $matches[1];
     }
 
-    private function normalizeVersion(string $version): string
+    protected function normalizeVersion(string $version): string
     {
         return $this->extractVersion($version) ?? '0.0.0';
     }

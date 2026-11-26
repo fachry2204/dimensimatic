@@ -54,7 +54,7 @@ class PlatformSettingsTest extends TestCase
 
         Livewire::actingAs($admin)->test(AccountSessions::class)
             ->assertSet('cmsLoginUrl', 'https://dimensisuara.id/login')
-            ->assertSee('Dimensimatic')
+            ->assertSee('DimensiMatic')
             ->set('cmsLoginUrl', 'https://cms.example.com/sign-in')
             ->call('saveCmsLoginUrl')->assertHasNoErrors();
 

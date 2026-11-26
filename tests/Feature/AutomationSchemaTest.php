@@ -19,7 +19,7 @@ class AutomationSchemaTest extends TestCase
         $this->seed(AccessControlSeeder::class);
         $user = User::factory()->create();
         $user->assignRole('Viewer');
-        $this->actingAs($user)->get('/')->assertOk()->assertSee('SoundOn Release Automation');
+        $this->actingAs($user)->get('/')->assertOk()->assertSee('Ringkasan Operasional');
     }
 
     public function test_run_status_is_cast_to_enum(): void
@@ -49,8 +49,8 @@ class AutomationSchemaTest extends TestCase
         $this->actingAs($user)->get('/')
             ->assertOk()
             ->assertSee('Pending Dimensi Suara')
-            ->assertSee('Berhasil upload ke SoundOn')
-            ->assertSee('Gagal upload ke SoundOn')
+            ->assertSee('Berhasil upload ke Aggregator')
+            ->assertSee('Gagal upload ke Aggregator')
             ->assertSee('Monitor rilisan')
             ->assertSee('Rilisan Pengujian')
             ->assertSee('Sudah diambil')

@@ -89,7 +89,7 @@ class SystemIdentityTest extends TestCase
         AutomationSetting::current()->update(['system_name' => 'Soundfresh Studio']);
         SystemBranding::refresh();
         $text = SystemBranding::text('Soundfresh / Dimensi Suara / Dimensimatic / soundfresh_reviewed');
-        $this->assertSame('Soundfresh Studio / Soundfresh Studio / Soundfresh Studio / soundfresh_reviewed', $text);
+        $this->assertSame('DimensiMatic Studio / DimensiMatic Studio / DimensiMatic Studio / soundfresh_reviewed', $text);
         $this->assertSame($text, SystemBranding::text($text));
     }
 }
